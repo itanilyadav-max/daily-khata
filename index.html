@@ -732,10 +732,14 @@
                 'auth/email-already-in-use': 'An account already exists with this email. Try logging in instead.',
                 'auth/weak-password': 'Password is too weak (minimum 6 characters).',
                 'auth/popup-closed-by-user': 'Google sign-in was cancelled.',
+                'auth/cancelled-popup-request': 'Sign-in was cancelled.',
+                'auth/popup-blocked': 'Your browser blocked the sign-in popup. Allow popups for this site and try again.',
+                'auth/operation-not-allowed': 'Google sign-in is not switched on yet for this project. In Firebase Console go to Authentication → Sign-in method → enable Google.',
+                'auth/unauthorized-domain': 'This domain is not authorized for sign-in. In Firebase Console go to Authentication → Settings → Authorized domains and add this domain.',
                 'auth/network-request-failed': 'Network error. Please check your connection.',
                 'auth/too-many-requests': 'Too many attempts. Please wait a bit and try again.'
             };
-            return map[code] || 'Something went wrong. Please try again.';
+            return map[code] || `Something went wrong${code ? ' (' + code + ')' : ''}. Please try again.`;
         }
 
         window.showAuthPanel = function(panel) {
@@ -773,7 +777,10 @@
         window.handleGoogleLogin = function() {
             clearAuthError();
             signInWithPopup(auth, googleProvider)
-                .catch(err => showAuthError(friendlyAuthError(err.code)));
+                .catch(err => {
+                    console.error('Google sign-in error:', err);
+                    showAuthError(friendlyAuthError(err.code));
+                });
         }
 
         window.handleForgotPassword = function() {
