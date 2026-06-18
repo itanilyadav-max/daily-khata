@@ -505,7 +505,7 @@
 
             <div class="card">
                 <h3 style="margin-bottom:16px">Set Budget Limits</h3>
-                <select id="budgetCategory">
+                <select id="budgetCategory" onchange="checkExistingBudget()">
                     <optgroup label="🌱 Raw Materials">
                         <option value="Raw Material - Cocopeat">Raw Material - Cocopeat</option>
                         <option value="Raw Materials - Vermicompost">Raw Materials - Vermicompost</option>
@@ -585,10 +585,32 @@
                     <option value="Other">Other</option>
                 </select>
                 <input type="number" id="budgetAmount" placeholder="Monthly Budget ₹" />
-                <button class="btn btn-success" onclick="setBudget()" style="width:100%">
-                    <i class="fas fa-save"></i> Set Budget
+                <div id="budgetHint" style="font-size:12px;color:#64748b;margin:-8px 0 12px"></div>
+                <button class="btn btn-success" onclick="setBudget()" style="width:100%" id="budgetSubmitBtn">
+                    <i class="fas fa-save"></i> <span id="budgetSubmitBtnLabel">Set Budget</span>
                 </button>
-                <div id="budgetList" style="margin-top:16px"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+                <h3>Your Budgets</h3>
+                <span style="font-size:13px;color:#64748b" id="budgetSummaryText"></span>
+            </div>
+            <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                    <thead>
+                        <tr style="text-align:left;border-bottom:2px solid var(--border)">
+                            <th style="padding:8px 6px">Category</th>
+                            <th style="padding:8px 6px;text-align:right">Budget</th>
+                            <th style="padding:8px 6px;text-align:right">Spent</th>
+                            <th style="padding:8px 6px;text-align:right">Remaining</th>
+                            <th style="padding:8px 6px">Usage</th>
+                            <th style="padding:8px 6px;text-align:center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="budgetTableBody"></tbody>
+                </table>
             </div>
         </div>
 
@@ -956,29 +978,93 @@
             const amount = parseFloat(document.getElementById('budgetAmount').value);
             if (!amount) return;
 
+            const isUpdate = budgets[category] !== undefined;
             set(ref(db, `budgets/${category}`), amount);
             document.getElementById('budgetAmount').value = '';
-            Swal.fire('Success', `Budget set for ${category}`, 'success');
+            document.getElementById('budgetHint').textContent = '';
+            document.getElementById('budgetSubmitBtnLabel').textContent = 'Set Budget';
+            Swal.fire('Success', `Budget ${isUpdate ? 'updated' : 'set'} for ${category}`, 'success');
+        }
+
+        window.checkExistingBudget = function() {
+            const category = document.getElementById('budgetCategory').value;
+            const hint = document.getElementById('budgetHint');
+            const label = document.getElementById('budgetSubmitBtnLabel');
+            if (budgets[category] !== undefined) {
+                document.getElementById('budgetAmount').value = budgets[category];
+                hint.textContent = `Already has a ₹${budgets[category].toLocaleString('en-IN')} limit - change the amount and submit to update it.`;
+                label.textContent = 'Update Budget';
+            } else {
+                document.getElementById('budgetAmount').value = '';
+                hint.textContent = '';
+                label.textContent = 'Set Budget';
+            }
+        }
+
+        window.editBudget = function(category) {
+            document.getElementById('budgetCategory').value = category;
+            checkExistingBudget();
+            document.getElementById('budgetCategory').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.getElementById('budgetAmount').focus();
+        }
+
+        window.deleteBudget = function(category) {
+            Swal.fire({
+                title: 'Remove this budget?', text: `This will remove the limit for ${category}`, icon: 'warning',
+                showCancelButton: true, confirmButtonColor: '#ef4444'
+            }).then(result => {
+                if (result.isConfirmed) remove(ref(db, `budgets/${category}`));
+            });
         }
 
         function renderBudgets() {
-            const list = document.getElementById('budgetList');
-            list.innerHTML = '';
-            for (let cat in budgets) {
-                const spent = getCategorySpent(cat);
-                const percent = Math.min((spent / budgets[cat]) * 100, 100);
-                list.innerHTML += `
-                    <div style="margin-bottom:12px">
-                        <div style="display:flex;justify-content:space-between;font-size:13px">
-                            <span>${cat}</span>
-                            <span>₹${spent} / ₹${budgets[cat]}</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar" style="width:${percent}%;background:${percent>90? 'var(--danger)': 'var(--primary)'}"></div>
-                        </div>
-                    </div>
-                `;
+            const tbody = document.getElementById('budgetTableBody');
+            const categories = Object.keys(budgets);
+
+            if (categories.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:#64748b">No budgets set yet - pick a category on the left and set a monthly limit.</td></tr>';
+                document.getElementById('budgetSummaryText').textContent = '';
+                return;
             }
+
+            let totalBudget = 0, totalSpent = 0;
+            const rows = categories.map(cat => {
+                const spent = getCategorySpent(cat);
+                const limit = budgets[cat];
+                const percent = Math.min((spent / limit) * 100, 100);
+                totalBudget += limit;
+                totalSpent += spent;
+
+                let status, statusClass;
+                if (spent >= limit) { status = 'Over Budget'; statusClass = 'badge-danger'; }
+                else if (percent >= 80) { status = 'Near Limit'; statusClass = 'badge-warning'; }
+                else { status = 'On Track'; statusClass = 'badge-success'; }
+
+                return { cat, spent, limit, percent, status, statusClass };
+            }).sort((a,b) => b.percent - a.percent);
+
+            const overallPct = totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0;
+            document.getElementById('budgetSummaryText').textContent =
+                `Total budgeted ₹${totalBudget.toLocaleString('en-IN')} · Spent ₹${totalSpent.toLocaleString('en-IN')} (${overallPct}%)`;
+
+            tbody.innerHTML = rows.map(r => `
+                <tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:8px 6px">${r.cat}</td>
+                    <td style="padding:8px 6px;text-align:right">₹${r.limit.toLocaleString('en-IN')}</td>
+                    <td style="padding:8px 6px;text-align:right">₹${r.spent.toLocaleString('en-IN')}</td>
+                    <td style="padding:8px 6px;text-align:right" class="${r.limit-r.spent<0?'danger-text':''}">₹${(r.limit-r.spent).toLocaleString('en-IN')}</td>
+                    <td style="padding:8px 6px;min-width:140px">
+                        <div class="progress" style="margin-bottom:4px">
+                            <div class="progress-bar" style="width:${r.percent}%;background:${r.percent>=100?'var(--danger)':(r.percent>=80?'#f59e0b':'var(--primary)')}"></div>
+                        </div>
+                        <span class="badge ${r.statusClass}" style="font-size:10px">${r.status}</span>
+                    </td>
+                    <td style="padding:8px 6px;text-align:center;white-space:nowrap">
+                        <button class="btn btn-sm" onclick="editBudget('${r.cat}')" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteBudget('${r.cat}')" title="Delete"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
         // ---------- DUES & PAYMENT TIMING MODULE ----------
