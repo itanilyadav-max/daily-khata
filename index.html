@@ -228,6 +228,30 @@
             background: #fee2e2; color: var(--danger); font-size: 13px;
             padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; display: none;
         }
+        .insight-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .insight-item:last-child { border-bottom: none; }
+        .insight-item i { margin-top: 2px; width: 16px; text-align: center; }
+        .heatmap-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 11px;
+            border: 1px solid var(--border);
+        }
+        .heatmap-day .day-num { font-weight: 600; }
+        .heatmap-day .day-amt { font-size: 9px; margin-top: 2px; }
+        .heatmap-day.today { outline: 2px solid var(--primary); outline-offset: 1px; }
         @media (max-width: 768px) {
            .grid-2 { grid-template-columns: 1fr; }
            .card-value { font-size: 22px; }
@@ -372,6 +396,11 @@
                 <div class="card-value" id="timingResult">₹0</div>
                 <div class="delta" id="timingResultPct"></div>
             </div>
+        </div>
+
+        <div class="card" id="insightsCard">
+            <h3 style="margin-bottom:14px"><i class="fas fa-lightbulb" style="color:#f59e0b"></i> Insights</h3>
+            <div id="insightsList"></div>
         </div>
 
         <div class="grid grid-2">
@@ -614,6 +643,25 @@
         </div>
 
         <div class="card">
+            <h3 style="margin-bottom:16px">Party-wise Report - Vendors & Customers</h3>
+            <p style="font-size:12px;color:#64748b;margin-bottom:12px">Built from your Dues entries - shows what's pending with each party and how payment timing worked out with them overall.</p>
+            <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                    <thead>
+                        <tr style="text-align:left;border-bottom:2px solid var(--border)">
+                            <th style="padding:8px 6px">Party</th>
+                            <th style="padding:8px 6px;text-align:right">Pending Payable</th>
+                            <th style="padding:8px 6px;text-align:right">Pending Receivable</th>
+                            <th style="padding:8px 6px;text-align:right">Settled Dues</th>
+                            <th style="padding:8px 6px;text-align:right">Net Timing Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partyReportBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
                 <h3>Reports & Analytics</h3>
 
@@ -658,11 +706,38 @@
         </div>
 
         <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+                <h3>Spending Calendar</h3>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <button class="btn btn-sm" onclick="calendarPrevMonth()"><i class="fas fa-chevron-left"></i></button>
+                    <span id="calendarMonthLabel" style="font-weight:600;min-width:130px;text-align:center"></span>
+                    <button class="btn btn-sm" onclick="calendarNextMonth()"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+            <p style="font-size:12px;color:#64748b;margin-bottom:10px">Darker shade = higher spend that day. Helps you spot your heavy-spend days/patterns.</p>
+            <div id="calendarGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
+        </div>
+
+        <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
                 <h3>Recent Transactions</h3>
                 <button class="btn btn-sm btn-danger" onclick="setupAutoBackup()">
                     <i class="fas fa-cloud"></i> Auto Backup
                 </button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+                <input type="text" id="filterSearch" placeholder="Search by note, category..." style="flex:2;min-width:160px;margin-bottom:0" oninput="renderTransactionList()">
+                <select id="filterType" style="flex:1;min-width:110px;margin-bottom:0" onchange="renderTransactionList()">
+                    <option value="">All Types</option>
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                </select>
+                <select id="filterCategory" style="flex:1;min-width:140px;margin-bottom:0" onchange="renderTransactionList()">
+                    <option value="">All Categories</option>
+                </select>
+                <input type="date" id="filterFrom" style="flex:1;min-width:120px;margin-bottom:0" onchange="renderTransactionList()">
+                <input type="date" id="filterTo" style="flex:1;min-width:120px;margin-bottom:0" onchange="renderTransactionList()">
+                <button class="btn btn-sm" style="margin-bottom:0" onclick="clearFilters()"><i class="fas fa-xmark"></i> Clear</button>
             </div>
             <div class="expense-list" id="transactionList"></div>
         </div>
@@ -702,6 +777,7 @@
         let currentReport = 'month';
         let chart;
         let categoryChart;
+        let calendarDate = new Date();
 
         function initAppDataListeners() {
             // Set today as default date
@@ -732,6 +808,7 @@
                 renderDues();
                 renderDueHistory();
                 updateDuesSummary();
+                renderPartyReport();
             });
 
             onValue(ref(db, 'settings/businessRoi'), (snapshot) => {
@@ -1192,8 +1269,63 @@
             renderDelta('expenseDelta', expense, lastExpense, false);
             renderDelta('balanceDelta', balance, lastBalance, true);
 
+            populateFilterCategories();
+            renderTransactionList();
+
+            updateChart();
+            updateCategoryBreakdown();
+            updateComparisonTable();
+            renderInsights();
+            renderCalendarHeatmap();
+            checkBudgetAlerts();
+        }
+
+        function populateFilterCategories() {
+            const sel = document.getElementById('filterCategory');
+            const current = sel.value;
+            const cats = Array.from(new Set(transactions.map(t => t.category))).sort();
+            sel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+            sel.value = current;
+        }
+
+        window.clearFilters = function() {
+            document.getElementById('filterSearch').value = '';
+            document.getElementById('filterType').value = '';
+            document.getElementById('filterCategory').value = '';
+            document.getElementById('filterFrom').value = '';
+            document.getElementById('filterTo').value = '';
+            renderTransactionList();
+        }
+
+        window.renderTransactionList = function() {
+            const search = document.getElementById('filterSearch').value.trim().toLowerCase();
+            const typeFilter = document.getElementById('filterType').value;
+            const catFilter = document.getElementById('filterCategory').value;
+            const fromFilter = document.getElementById('filterFrom').value;
+            const toFilter = document.getElementById('filterTo').value;
+
+            let filtered = transactions.filter(t => {
+                if (typeFilter && t.type !== typeFilter) return false;
+                if (catFilter && t.category !== catFilter) return false;
+                if (fromFilter && t.date < fromFilter) return false;
+                if (toFilter && t.date > toFilter) return false;
+                if (search) {
+                    const hay = `${t.category} ${t.note || ''}`.toLowerCase();
+                    if (!hay.includes(search)) return false;
+                }
+                return true;
+            });
+
             const list = document.getElementById('transactionList');
-            list.innerHTML = transactions.slice(0,20).map(t => `
+            const isFiltering = search || typeFilter || catFilter || fromFilter || toFilter;
+            const toShow = isFiltering ? filtered : filtered.slice(0, 20);
+
+            if (toShow.length === 0) {
+                list.innerHTML = '<p style="color:#64748b;font-size:14px;padding:10px 0">No transactions match these filters.</p>';
+                return;
+            }
+
+            list.innerHTML = toShow.map(t => `
                 <div class="expense-item">
                     <div>
                         <strong>${t.category}</strong><br>
@@ -1209,11 +1341,6 @@
                     </div>
                 </div>
             `).join('');
-
-            updateChart();
-            updateCategoryBreakdown();
-            updateComparisonTable();
-            checkBudgetAlerts();
         }
 
         function renderDelta(elId, current, previous, higherIsGood) {
@@ -1439,6 +1566,178 @@
         }
 
         // ---------- END CATEGORY BREAKDOWN & COMPARISON MODULE ----------
+
+        // ---------- PLAIN-LANGUAGE INSIGHTS ----------
+
+        function renderInsights() {
+            const insights = [];
+            const thisMonthTx = getPeriodTransactions('month', 0);
+            const lastMonthTx = getPeriodTransactions('month', 1);
+
+            const thisExpense = thisMonthTx.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+            const lastExpense = lastMonthTx.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+
+            if (lastExpense > 0) {
+                const pct = Math.round(((thisExpense - lastExpense) / lastExpense) * 1000) / 10;
+                if (pct > 5) {
+                    insights.push({ icon: 'fa-arrow-trend-up', color: 'danger-text', text: `Your overall expense is up ${pct}% versus last month (₹${thisExpense.toLocaleString('en-IN')} vs ₹${lastExpense.toLocaleString('en-IN')}).` });
+                } else if (pct < -5) {
+                    insights.push({ icon: 'fa-arrow-trend-down', color: 'success-text', text: `Nice - your overall expense is down ${Math.abs(pct)}% versus last month. Keep it up.` });
+                }
+            }
+
+            // Biggest category increase this month vs last month
+            const curMap = {}, prevMap = {};
+            thisMonthTx.filter(t => t.type === 'expense').forEach(t => curMap[t.category] = (curMap[t.category]||0) + t.amount);
+            lastMonthTx.filter(t => t.type === 'expense').forEach(t => prevMap[t.category] = (prevMap[t.category]||0) + t.amount);
+            let biggestJump = null;
+            Object.keys(curMap).forEach(cat => {
+                if (prevMap[cat] && prevMap[cat] > 0) {
+                    const pct = ((curMap[cat] - prevMap[cat]) / prevMap[cat]) * 100;
+                    if (pct > 20 && (!biggestJump || pct > biggestJump.pct)) biggestJump = { cat, pct: Math.round(pct) };
+                }
+            });
+            if (biggestJump) {
+                insights.push({ icon: 'fa-triangle-exclamation', color: 'danger-text', text: `"${biggestJump.cat}" jumped ${biggestJump.pct}% compared to last month - your biggest category increase.` });
+            }
+
+            // Top expense category this month
+            const sortedCats = Object.entries(curMap).sort((a,b) => b[1] - a[1]);
+            if (sortedCats.length && thisExpense > 0) {
+                const [topCat, topAmt] = sortedCats[0];
+                const sharePct = Math.round((topAmt / thisExpense) * 100);
+                if (sharePct >= 25) {
+                    insights.push({ icon: 'fa-chart-pie', color: '', text: `"${topCat}" is your single biggest cost this month - ${sharePct}% of total expense.` });
+                }
+            }
+
+            // Overdue dues
+            const overdue = dues.filter(d => d.status === 'pending' && daysBetween(new Date().toISOString().slice(0,10), d.dueDate) < 0);
+            if (overdue.length > 0) {
+                const overdueAmt = overdue.reduce((s,d) => s + d.amount, 0);
+                insights.push({ icon: 'fa-clock', color: 'danger-text', text: `You have ${overdue.length} overdue ${overdue.length===1?'due':'dues'} worth ₹${overdueAmt.toLocaleString('en-IN')} - settle these first to avoid penalties.` });
+            }
+
+            // Payment timing result this month
+            const settledThisMonth = dues.filter(d => d.status === 'paid' && d.outcome && d.paidDate && d.paidDate.startsWith(new Date().toISOString().slice(0,7)));
+            if (settledThisMonth.length > 0) {
+                const netTotal = settledThisMonth.reduce((s,d) => s + d.outcome.netAmount, 0);
+                if (netTotal >= 0) {
+                    insights.push({ icon: 'fa-thumbs-up', color: 'success-text', text: `Smart payment timing earned you an extra ₹${netTotal.toLocaleString('en-IN')} this month across ${settledThisMonth.length} settled due(s).` });
+                } else {
+                    insights.push({ icon: 'fa-thumbs-down', color: 'danger-text', text: `Payment timing cost you ₹${Math.abs(netTotal).toLocaleString('en-IN')} this month - check the Payment Timing Report below for which dues.` });
+                }
+            }
+
+            const list = document.getElementById('insightsList');
+            if (insights.length === 0) {
+                list.innerHTML = '<p style="color:#64748b;font-size:13px">Not enough data yet for insights - keep logging transactions and dues.</p>';
+            } else {
+                list.innerHTML = insights.slice(0,5).map(ins => `
+                    <div class="insight-item">
+                        <i class="fas ${ins.icon} ${ins.color}"></i>
+                        <span>${ins.text}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // ---------- END INSIGHTS ----------
+
+        // ---------- SPENDING CALENDAR HEATMAP ----------
+
+        window.calendarPrevMonth = function() {
+            calendarDate.setMonth(calendarDate.getMonth() - 1);
+            renderCalendarHeatmap();
+        }
+        window.calendarNextMonth = function() {
+            calendarDate.setMonth(calendarDate.getMonth() + 1);
+            renderCalendarHeatmap();
+        }
+
+        function renderCalendarHeatmap() {
+            const year = calendarDate.getFullYear();
+            const month = calendarDate.getMonth();
+            document.getElementById('calendarMonthLabel').textContent = calendarDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+
+            const firstDayOffset = new Date(year, month, 1).getDay();
+            const totalDays = new Date(year, month + 1, 0).getDate();
+            const todayStr = new Date().toISOString().slice(0,10);
+
+            const dayTotals = {};
+            let maxAmt = 0;
+            for (let d = 1; d <= totalDays; d++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const amt = transactions.filter(t => t.date === dateStr && t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+                dayTotals[d] = amt;
+                if (amt > maxAmt) maxAmt = amt;
+            }
+
+            const dayLabels = ['S','M','T','W','T','F','S'];
+            let html = dayLabels.map(l => `<div style="text-align:center;font-size:11px;font-weight:600;color:#64748b">${l}</div>`).join('');
+
+            for (let i = 0; i < firstDayOffset; i++) html += `<div></div>`;
+
+            for (let d = 1; d <= totalDays; d++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const amt = dayTotals[d];
+                const ratio = maxAmt > 0 ? amt / maxAmt : 0;
+                const bg = amt > 0 ? `rgba(99,102,241,${(0.15 + 0.75 * ratio).toFixed(2)})` : 'transparent';
+                const textColor = ratio > 0.55 ? '#fff' : 'var(--text)';
+                html += `
+                    <div class="heatmap-day ${dateStr===todayStr?'today':''}" style="background:${bg};color:${textColor}">
+                        <span class="day-num">${d}</span>
+                        ${amt > 0 ? `<span class="day-amt">₹${amt >= 1000 ? Math.round(amt/1000)+'k' : amt}</span>` : ''}
+                    </div>
+                `;
+            }
+
+            document.getElementById('calendarGrid').innerHTML = html;
+        }
+
+        // ---------- END CALENDAR HEATMAP ----------
+
+        // ---------- PARTY-WISE REPORT ----------
+
+        function renderPartyReport() {
+            const tbody = document.getElementById('partyReportBody');
+            if (!tbody) return;
+
+            const parties = {};
+            dues.forEach(d => {
+                if (!parties[d.party]) parties[d.party] = { pendingPayable: 0, pendingReceivable: 0, settledCount: 0, netTotal: 0 };
+                if (d.status === 'pending') {
+                    if (d.direction === 'payable') parties[d.party].pendingPayable += d.amount;
+                    else parties[d.party].pendingReceivable += d.amount;
+                } else if (d.status === 'paid' && d.outcome) {
+                    parties[d.party].settledCount += 1;
+                    parties[d.party].netTotal += d.outcome.netAmount;
+                }
+            });
+
+            const rows = Object.entries(parties).sort((a,b) =>
+                (b[1].pendingPayable + b[1].pendingReceivable) - (a[1].pendingPayable + a[1].pendingReceivable)
+            );
+
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:#64748b">No dues added yet - add a due to see party-wise tracking.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = rows.map(([party, p]) => `
+                <tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:8px 6px"><strong>${party}</strong></td>
+                    <td style="padding:8px 6px;text-align:right" class="${p.pendingPayable>0?'danger-text':''}">₹${p.pendingPayable.toLocaleString('en-IN')}</td>
+                    <td style="padding:8px 6px;text-align:right" class="${p.pendingReceivable>0?'success-text':''}">₹${p.pendingReceivable.toLocaleString('en-IN')}</td>
+                    <td style="padding:8px 6px;text-align:right">${p.settledCount}</td>
+                    <td style="padding:8px 6px;text-align:right;font-weight:600" class="${p.settledCount===0?'':(p.netTotal>=0?'verdict-good':'verdict-bad')}">
+                        ${p.settledCount===0 ? '—' : (p.netTotal>=0?'+':'')+'₹'+p.netTotal.toLocaleString('en-IN')}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ---------- END PARTY-WISE REPORT ----------
 
         window.exportData = function() {
             const data = { transactions, budgets, dues, businessRoi, exportDate: new Date().toISOString() };
