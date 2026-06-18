@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vyapar Khata - Smart Expense Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 16px;
+        }
+       .container { max-width: 1200px; margin: 0 auto; }
+       .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+        }
+       .header h1 { font-size: 24px; font-weight: 600; }
+       .header p { opacity: 0.9; font-size: 14px; margin-top: 4px; }
+       .grid { display: grid; gap: 16px; margin-bottom: 20px; }
+       .grid-4 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+       .grid-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
+       .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+       .card-title {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+       .card-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+        }
+       .card-icon {
+            float: right;
+            font-size: 32px;
+            opacity: 0.2;
+        }
+       .danger-text { color: var(--danger); }
+       .success-text { color: var(--success); }
+       .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+       .btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
+       .btn-danger { background: var(--danger); }
+       .btn-success { background: var(--success); }
+       .btn-sm { padding: 8px 14px; font-size: 12px; }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Poppins';
+            margin-bottom: 12px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+       .expense-list { max-height: 400px; overflow-y: auto; }
+       .expense-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+       .expense-item:last-child { border-bottom: none; }
+       .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+       .badge-danger { background: #fee2e2; color: var(--danger); }
+       .badge-success { background: #d1fae5; color: var(--success); }
+       .badge-warning { background: #fef3c7; color: #b45309; }
+       .delta { font-size: 12px; font-weight: 600; margin-top: 4px; }
+       .delta i { font-size: 10px; }
+       .due-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+       .due-meta { font-size: 12px; color: #64748b; margin-top: 2px; }
+       .verdict-good { color: var(--success); font-weight: 700; }
+       .verdict-bad { color: var(--danger); font-weight: 700; }
+       .section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 24px 0 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+       .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+       .tab {
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: var(--bg);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+       .tab.active { background: var(--primary); color: white; }
+       .progress {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+       .progress-bar {
+            height: 100%;
+            background: var(--primary);
+            transition: 0.3s;
+        }
+       .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+       .modal.active { display: flex; }
+       .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+        }
+        .auth-overlay {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px; z-index: 2000;
+        }
+        .auth-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 36px 32px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        }
+        .auth-logo { text-align: center; margin-bottom: 6px; }
+        .auth-logo i { font-size: 34px; color: var(--primary); }
+        .auth-title { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+        .auth-subtitle { text-align: center; font-size: 13px; color: #64748b; margin-bottom: 26px; }
+        .auth-panel { display: none; }
+        .auth-panel.active { display: block; }
+        .auth-input-group { position: relative; margin-bottom: 14px; }
+        .auth-input-group i {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: #94a3b8; font-size: 14px;
+        }
+        .auth-input-group input { padding-left: 38px; margin-bottom: 0; }
+        .auth-forgot-link {
+            text-align: right; font-size: 12px; color: var(--primary);
+            cursor: pointer; margin: -6px 0 16px; font-weight: 500;
+        }
+        .auth-divider {
+            display: flex; align-items: center; gap: 10px;
+            margin: 18px 0; color: #94a3b8; font-size: 12px;
+        }
+        .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .btn-google {
+            background: #fff; color: #1e293b; border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
+        }
+        .btn-google:hover { background: #f8fafc; transform: translateY(-1px); }
+        .auth-switch { text-align: center; font-size: 13px; color: #64748b; margin-top: 18px; }
+        .auth-switch span { color: var(--primary); font-weight: 600; cursor: pointer; }
+        .auth-error {
+            background: #fee2e2; color: var(--danger); font-size: 13px;
+            padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; display: none;
+        }
+        @media (max-width: 768px) {
+           .grid-2 { grid-template-columns: 1fr; }
+           .card-value { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-card">
+            <div class="auth-logo"><i class="fas fa-wallet"></i></div>
+            <div class="auth-title">Vyapar Khata</div>
+            <div class="auth-subtitle">Smart expense tracking for your business</div>
+            <div class="auth-error" id="authError"></div>
+
+            <!-- LOGIN -->
+            <div class="auth-panel active" id="loginPanel">
+                <div class="auth-input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="loginEmail" placeholder="Email address">
+                </div>
+                <div class="auth-input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="loginPassword" placeholder="Password">
+                </div>
+                <div class="auth-forgot-link" onclick="showAuthPanel('forgot')">Forgot password?</div>
+                <button class="btn" style="width:100%" onclick="handleLogin()">
+                    <i class="fas fa-arrow-right-to-bracket"></i> Login
+                </button>
+                <div class="auth-divider">OR</div>
+                <button class="btn-google btn" onclick="handleGoogleLogin()">
+                    <i class="fab fa-google" style="color:#ea4335"></i> Continue with Google
+                </button>
+                <div class="auth-switch">New here? <span onclick="showAuthPanel('register')">Create an account</span></div>
+            </div>
+
+            <!-- REGISTER -->
+            <div class="auth-panel" id="registerPanel">
+                <div class="auth-input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="registerName" placeholder="Full name">
+                </div>
+                <div class="auth-input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="registerEmail" placeholder="Email address">
+                </div>
+                <div class="auth-input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="registerPassword" placeholder="Password (min 6 characters)">
+                </div>
+                <div class="auth-input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="registerConfirm" placeholder="Confirm password">
+                </div>
+                <button class="btn btn-success" style="width:100%" onclick="handleRegister()">
+                    <i class="fas fa-user-plus"></i> Create Account
+                </button>
+                <div class="auth-divider">OR</div>
+                <button class="btn-google btn" onclick="handleGoogleLogin()">
+                    <i class="fab fa-google" style="color:#ea4335"></i> Continue with Google
+                </button>
+                <div class="auth-switch">Already have an account? <span onclick="showAuthPanel('login')">Login</span></div>
+            </div>
+
+            <!-- FORGOT PASSWORD -->
+            <div class="auth-panel" id="forgotPanel">
+                <p style="font-size:13px;color:#64748b;margin-bottom:16px">
+                    Enter your registered email and we'll send you a password reset link.
+                </p>
+                <div class="auth-input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="forgotEmail" placeholder="Email address">
+                </div>
+                <button class="btn" style="width:100%" onclick="handleForgotPassword()">
+                    <i class="fas fa-paper-plane"></i> Send Reset Link
+                </button>
+                <div class="auth-switch">Remembered it? <span onclick="showAuthPanel('login')">Back to Login</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="appContainer" style="display:none">
+        <div class="header">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+                <div>
+                    <h1><i class="fas fa-wallet"></i> Vyapar Khata</h1>
+                    <p>Smart expense tracking for business owners. Never miss a payment again.</p>
+                </div>
+                <div style="text-align:right">
+                    <div id="userEmailDisplay" style="font-size:13px;opacity:0.9"></div>
+                    <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);margin-top:6px" onclick="handleLogout()">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-4">
+            <div class="card">
+                <i class="fas fa-arrow-down card-icon success-text"></i>
+                <div class="card-title">This Month Income</div>
+                <div class="card-value success-text" id="monthIncome">₹0</div>
+                <div class="delta" id="incomeDelta"></div>
+            </div>
+            <div class="card">
+                <i class="fas fa-arrow-up card-icon danger-text"></i>
+                <div class="card-title">This Month Expense</div>
+                <div class="card-value danger-text" id="monthExpense">₹0</div>
+                <div class="delta" id="expenseDelta"></div>
+            </div>
+            <div class="card">
+                <i class="fas fa-piggy-bank card-icon"></i>
+                <div class="card-title">Balance</div>
+                <div class="card-value" id="balance">₹0</div>
+                <div class="delta" id="balanceDelta"></div>
+            </div>
+            <div class="card">
+                <i class="fas fa-bell card-icon"></i>
+                <div class="card-title">Budget Alerts</div>
+                <div class="card-value" id="alertCount">0</div>
+            </div>
+        </div>
+
+        <div class="grid grid-4">
+            <div class="card">
+                <i class="fas fa-hand-holding-dollar card-icon danger-text"></i>
+                <div class="card-title">Outstanding Payable (You Owe)</div>
+                <div class="card-value danger-text" id="totalPayable">₹0</div>
+            </div>
+            <div class="card">
+                <i class="fas fa-money-bill-trend-up card-icon success-text"></i>
+                <div class="card-title">Outstanding Receivable (Owed To You)</div>
+                <div class="card-value success-text" id="totalReceivable">₹0</div>
+            </div>
+            <div class="card">
+                <i class="fas fa-triangle-exclamation card-icon"></i>
+                <div class="card-title">Overdue Dues</div>
+                <div class="card-value" id="overdueCount">0</div>
+            </div>
+            <div class="card">
+                <i class="fas fa-scale-balanced card-icon"></i>
+                <div class="card-title">Payment Timing Result (This Month)</div>
+                <div class="card-value" id="timingResult">₹0</div>
+                <div class="delta" id="timingResultPct"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-2">
+            <div class="card">
+                <h3 style="margin-bottom:16px">Add Transaction</h3>
+                <select id="type">
+                    <option value="expense">Expense</option>
+                    <option value="income">Income</option>
+                </select>
+                <input type="number" id="amount" placeholder="Amount ₹" />
+                <select id="category">
+                    <option value="">Select Category</option>
+                    <optgroup label="💰 Income">
+                        <option value="Sales">Sales</option>
+                        <option value="Investment Sale">Investment Sale</option>
+                    </optgroup>
+                    <optgroup label="🌱 Raw Materials">
+                        <option value="Raw Material - Cocopeat">Raw Material - Cocopeat</option>
+                        <option value="Raw Materials - Vermicompost">Raw Materials - Vermicompost</option>
+                        <option value="Raw Materials - Seeds">Raw Materials - Seeds</option>
+                        <option value="Raw Materials - Hydrogen Peroxide">Raw Materials - Hydrogen Peroxide</option>
+                        <option value="Raw Materials - Neem Oil">Raw Materials - Neem Oil</option>
+                        <option value="Raw Materials - Transportation Expense">Raw Materials - Transportation Expense</option>
+                    </optgroup>
+                    <optgroup label="👤 Salary & Labour">
+                        <option value="Salary">Salary</option>
+                    </optgroup>
+                    <optgroup label="🏠 Rent & Premises">
+                        <option value="Rent">Rent</option>
+                        <option value="Deposit Against Premises">Deposit Against Premises</option>
+                        <option value="Brokerage to Real Estate guy">Brokerage to Real Estate guy</option>
+                    </optgroup>
+                    <optgroup label="⚡ Utilities">
+                        <option value="Electricity">Electricity</option>
+                        <option value="Drinking Water">Drinking Water</option>
+                        <option value="Internet Renewal Expense">Internet Renewal Expense</option>
+                        <option value="Mobile Alert Charges">Mobile Alert Charges</option>
+                        <option value="Garbage Management Expense">Garbage Management Expense</option>
+                    </optgroup>
+                    <optgroup label="🧹 Maintenance & Hygiene">
+                        <option value="Maintainance - AC Expense">Maintainance - AC Expense</option>
+                        <option value="Maintainance - Dehumidifier Expense">Maintainance - Dehumidifier Expense</option>
+                        <option value="Hygiene Materials">Hygiene Materials</option>
+                        <option value="Miscellaneous - Garbage Bags">Miscellaneous - Garbage Bags</option>
+                    </optgroup>
+                    <optgroup label="🔧 Equipment & Machinery">
+                        <option value="Production Equipment & Machines">Production Equipment & Machines</option>
+                        <option value="Equipment - Dehumidifier">Equipment - Dehumidifier</option>
+                        <option value="Equipment - Production Racks">Equipment - Production Racks</option>
+                        <option value="Equipment - Grow Lights">Equipment - Grow Lights</option>
+                        <option value="Equipment - Grow Trays">Equipment - Grow Trays</option>
+                        <option value="Equipments - Rack Fans">Equipments - Rack Fans</option>
+                        <option value="Equipment - Weighing machine">Equipment - Weighing machine</option>
+                        <option value="Equipment - Office - Laptop/PC">Equipment - Office - Laptop/PC</option>
+                        <option value="Equipment - Office - Printer">Equipment - Office - Printer</option>
+                        <option value="Equipment - Water Circulation system">Equipment - Water Circulation system</option>
+                        <option value="Office Furniture">Office Furniture</option>
+                    </optgroup>
+                    <optgroup label="📦 Packaging, Travel & Delivery">
+                        <option value="Packaging Expense">Packaging Expense</option>
+                        <option value="Travel Conveyance">Travel Conveyance</option>
+                        <option value="Delivery Expense - Tiffinwala">Delivery Expense - Tiffinwala</option>
+                    </optgroup>
+                    <optgroup label="📣 Marketing & Vendor Payments">
+                        <option value="Marketing - Event Stall expense">Marketing - Event Stall expense</option>
+                        <option value="Vendor Payments - Edible Flower">Vendor Payments - Edible Flower</option>
+                        <option value="Stationary/Printing Expense">Stationary/Printing Expense</option>
+                    </optgroup>
+                    <optgroup label="💻 Subscriptions & Software">
+                        <option value="Subscription - Software Payments">Subscription - Software Payments</option>
+                    </optgroup>
+                    <optgroup label="🏦 Banking, Tax & Cash">
+                        <option value="Petty Cash Withdrawal">Petty Cash Withdrawal</option>
+                        <option value="IMPS Charges">IMPS Charges</option>
+                        <option value="Loan EMI">Loan EMI</option>
+                        <option value="GST/Tax">GST/Tax</option>
+                    </optgroup>
+                    <optgroup label="🏗️ Farm Civil / Setup Work">
+                        <option value="Farm Civil - Panelling">Farm Civil - Panelling</option>
+                        <option value="Farm Civil - Electrical Raw Materials">Farm Civil - Electrical Raw Materials</option>
+                        <option value="Farm Civil - Electrical Labour">Farm Civil - Electrical Labour</option>
+                        <option value="Farm Civil - Plumbing">Farm Civil - Plumbing</option>
+                        <option value="Farm Civil - False Ceiling">Farm Civil - False Ceiling</option>
+                        <option value="Farm Civil - Painting">Farm Civil - Painting</option>
+                        <option value="Farm Civil - Miscellaneous">Farm Civil - Miscellaneous</option>
+                        <option value="Farm Civil - 3 Phase Expenses">Farm Civil - 3 Phase Expenses</option>
+                        <option value="Farm Civil - AC Setup Charges">Farm Civil - AC Setup Charges</option>
+                    </optgroup>
+                    <optgroup label="🙋 Personal & Internal Transfers">
+                        <option value="Personal Expense">Personal Expense</option>
+                        <option value="Transfer from Company">Transfer from Company</option>
+                        <option value="Miscellaneous - Others">Miscellaneous - Others</option>
+                    </optgroup>
+                    <option value="Other">Other</option>
+                </select>
+                <input type="text" id="note" placeholder="Note: Invoice no, party name" />
+                <input type="date" id="date" />
+                <button class="btn" onclick="addTransaction()" style="width:100%">
+                    <i class="fas fa-plus"></i> Add Transaction
+                </button>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-bottom:16px">Set Budget Limits</h3>
+                <select id="budgetCategory">
+                    <optgroup label="🌱 Raw Materials">
+                        <option value="Raw Material - Cocopeat">Raw Material - Cocopeat</option>
+                        <option value="Raw Materials - Vermicompost">Raw Materials - Vermicompost</option>
+                        <option value="Raw Materials - Seeds">Raw Materials - Seeds</option>
+                        <option value="Raw Materials - Hydrogen Peroxide">Raw Materials - Hydrogen Peroxide</option>
+                        <option value="Raw Materials - Neem Oil">Raw Materials - Neem Oil</option>
+                        <option value="Raw Materials - Transportation Expense">Raw Materials - Transportation Expense</option>
+                    </optgroup>
+                    <optgroup label="👤 Salary & Labour">
+                        <option value="Salary">Salary</option>
+                    </optgroup>
+                    <optgroup label="🏠 Rent & Premises">
+                        <option value="Rent">Rent</option>
+                        <option value="Deposit Against Premises">Deposit Against Premises</option>
+                        <option value="Brokerage to Real Estate guy">Brokerage to Real Estate guy</option>
+                    </optgroup>
+                    <optgroup label="⚡ Utilities">
+                        <option value="Electricity">Electricity</option>
+                        <option value="Drinking Water">Drinking Water</option>
+                        <option value="Internet Renewal Expense">Internet Renewal Expense</option>
+                        <option value="Mobile Alert Charges">Mobile Alert Charges</option>
+                        <option value="Garbage Management Expense">Garbage Management Expense</option>
+                    </optgroup>
+                    <optgroup label="🧹 Maintenance & Hygiene">
+                        <option value="Maintainance - AC Expense">Maintainance - AC Expense</option>
+                        <option value="Maintainance - Dehumidifier Expense">Maintainance - Dehumidifier Expense</option>
+                        <option value="Hygiene Materials">Hygiene Materials</option>
+                        <option value="Miscellaneous - Garbage Bags">Miscellaneous - Garbage Bags</option>
+                    </optgroup>
+                    <optgroup label="🔧 Equipment & Machinery">
+                        <option value="Production Equipment & Machines">Production Equipment & Machines</option>
+                        <option value="Equipment - Dehumidifier">Equipment - Dehumidifier</option>
+                        <option value="Equipment - Production Racks">Equipment - Production Racks</option>
+                        <option value="Equipment - Grow Lights">Equipment - Grow Lights</option>
+                        <option value="Equipment - Grow Trays">Equipment - Grow Trays</option>
+                        <option value="Equipments - Rack Fans">Equipments - Rack Fans</option>
+                        <option value="Equipment - Weighing machine">Equipment - Weighing machine</option>
+                        <option value="Equipment - Office - Laptop/PC">Equipment - Office - Laptop/PC</option>
+                        <option value="Equipment - Office - Printer">Equipment - Office - Printer</option>
+                        <option value="Equipment - Water Circulation system">Equipment - Water Circulation system</option>
+                        <option value="Office Furniture">Office Furniture</option>
+                    </optgroup>
+                    <optgroup label="📦 Packaging, Travel & Delivery">
+                        <option value="Packaging Expense">Packaging Expense</option>
+                        <option value="Travel Conveyance">Travel Conveyance</option>
+                        <option value="Delivery Expense - Tiffinwala">Delivery Expense - Tiffinwala</option>
+                    </optgroup>
+                    <optgroup label="📣 Marketing & Vendor Payments">
+                        <option value="Marketing - Event Stall expense">Marketing - Event Stall expense</option>
+                        <option value="Vendor Payments - Edible Flower">Vendor Payments - Edible Flower</option>
+                        <option value="Stationary/Printing Expense">Stationary/Printing Expense</option>
+                    </optgroup>
+                    <optgroup label="💻 Subscriptions & Software">
+                        <option value="Subscription - Software Payments">Subscription - Software Payments</option>
+                    </optgroup>
+                    <optgroup label="🏦 Banking, Tax & Cash">
+                        <option value="Petty Cash Withdrawal">Petty Cash Withdrawal</option>
+                        <option value="IMPS Charges">IMPS Charges</option>
+                        <option value="Loan EMI">Loan EMI</option>
+                        <option value="GST/Tax">GST/Tax</option>
+                    </optgroup>
+                    <optgroup label="🏗️ Farm Civil / Setup Work">
+                        <option value="Farm Civil - Panelling">Farm Civil - Panelling</option>
+                        <option value="Farm Civil - Electrical Raw Materials">Farm Civil - Electrical Raw Materials</option>
+                        <option value="Farm Civil - Electrical Labour">Farm Civil - Electrical Labour</option>
+                        <option value="Farm Civil - Plumbing">Farm Civil - Plumbing</option>
+                        <option value="Farm Civil - False Ceiling">Farm Civil - False Ceiling</option>
+                        <option value="Farm Civil - Painting">Farm Civil - Painting</option>
+                        <option value="Farm Civil - Miscellaneous">Farm Civil - Miscellaneous</option>
+                        <option value="Farm Civil - 3 Phase Expenses">Farm Civil - 3 Phase Expenses</option>
+                        <option value="Farm Civil - AC Setup Charges">Farm Civil - AC Setup Charges</option>
+                    </optgroup>
+                    <optgroup label="🙋 Personal & Internal Transfers">
+                        <option value="Personal Expense">Personal Expense</option>
+                        <option value="Miscellaneous - Others">Miscellaneous - Others</option>
+                    </optgroup>
+                    <option value="Other">Other</option>
+                </select>
+                <input type="number" id="budgetAmount" placeholder="Monthly Budget ₹" />
+                <button class="btn btn-success" onclick="setBudget()" style="width:100%">
+                    <i class="fas fa-save"></i> Set Budget
+                </button>
+                <div id="budgetList" style="margin-top:16px"></div>
+            </div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-receipt"></i> Dues & Payment Timing Manager</div>
+        <div class="grid grid-2">
+            <div class="card">
+                <h3 style="margin-bottom:16px">Add a Due (Payable / Receivable)</h3>
+                <select id="dueDirection">
+                    <option value="payable">Payable - I need to pay this</option>
+                    <option value="receivable">Receivable - Someone owes me this</option>
+                </select>
+                <input type="text" id="dueParty" placeholder="Party / Supplier / Customer name" />
+                <input type="number" id="dueAmount" placeholder="Amount ₹" />
+                <label style="font-size:12px;color:#64748b">Bill / Recorded Date</label>
+                <input type="date" id="dueBillDate" />
+                <label style="font-size:12px;color:#64748b">Due Date</label>
+                <input type="date" id="dueDate" />
+                <input type="number" id="dueDiscountPercent" placeholder="Early payment discount % (optional)" />
+                <label style="font-size:12px;color:#64748b">Discount valid till (optional)</label>
+                <input type="date" id="dueDiscountCutoff" />
+                <input type="number" id="duePenaltyPercent" placeholder="Late penalty/interest % per month (optional)" />
+                <input type="text" id="dueNote" placeholder="Note: invoice no, reason" />
+                <button class="btn" onclick="addDue()" style="width:100%">
+                    <i class="fas fa-plus"></i> Add Due
+                </button>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-bottom:16px">Payment Timing Settings</h3>
+                <p style="font-size:13px;color:#64748b;margin-bottom:10px">
+                    When you hold a payable instead of paying immediately, the cash stays free to use in your business.
+                    Set your business's typical annual return on working capital so the app can value that benefit fairly
+                    against any discount missed or penalty paid.
+                </p>
+                <input type="number" id="businessRoi" placeholder="Your business annual return on capital % (e.g. 24)" />
+                <button class="btn btn-success" onclick="saveRoi()" style="width:100%">
+                    <i class="fas fa-save"></i> Save Setting
+                </button>
+                <div id="roiCurrent" style="margin-top:12px;font-size:13px;color:#64748b"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom:16px">Pending Dues</h3>
+            <div id="duesList"></div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom:16px">Payment Timing Report - Did Holding Help or Hurt?</h3>
+            <p style="font-size:13px;color:#64748b;margin-bottom:12px" id="timingSummary"></p>
+            <div id="dueHistoryList" class="expense-list"></div>
+        </div>
+
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+                <h3>Reports & Analytics</h3>
+
+                <div class="tabs">
+                    <div class="tab active" onclick="changeReport('week')">Weekly</div>
+                    <div class="tab" onclick="changeReport('month')">Monthly</div>
+                    <div class="tab" onclick="changeReport('year')">Yearly</div>
+                    <div class="tab" onclick="exportData()">Export Backup</div>
+                    <div class="tab" onclick="document.getElementById('importFile').click()">Import</div>
+                    <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+                </div>
+            </div>
+            <canvas id="expenseChart" height="100"></canvas>
+        </div>
+
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h3>Recent Transactions</h3>
+                <button class="btn btn-sm btn-danger" onclick="setupAutoBackup()">
+                    <i class="fas fa-cloud"></i> Auto Backup
+                </button>
+            </div>
+            <div class="expense-list" id="transactionList"></div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, push, onValue, remove, set, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import {
+            getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+            GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail,
+            onAuthStateChanged, signOut, updateProfile
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Firebase config for Daily Khata project
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-zerDN3G14nZjrfCFv1KtEMBMj-8cKIU",
+            authDomain: "daily-khata-c5006.firebaseapp.com",
+            databaseURL: "https://daily-khata-c5006-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "daily-khata-c5006",
+            storageBucket: "daily-khata-c5006.firebasestorage.app",
+            messagingSenderId: "991309238219",
+            appId: "1:991309238219:web:12d94b1b802131d409f04e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+        const googleProvider = new GoogleAuthProvider();
+        let listenersInitialized = false;
+
+        let transactions = [];
+        let budgets = {};
+        let dues = [];
+        let businessRoi = 24; // default assumed annual return on working capital %
+        let currentReport = 'month';
+        let chart;
+
+        function initAppDataListeners() {
+            // Set today as default date
+            document.getElementById('date').valueAsDate = new Date();
+            document.getElementById('dueBillDate').valueAsDate = new Date();
+
+            // Load data
+            onValue(ref(db, 'transactions'), (snapshot) => {
+                transactions = [];
+                snapshot.forEach(child => {
+                    transactions.push({ id: child.key,...child.val() });
+                });
+                transactions.sort((a,b) => new Date(b.date) - new Date(a.date));
+                updateUI();
+            });
+
+            onValue(ref(db, 'budgets'), (snapshot) => {
+                budgets = snapshot.val() || {};
+                renderBudgets();
+                checkBudgetAlerts();
+            });
+
+            onValue(ref(db, 'dues'), (snapshot) => {
+                dues = [];
+                snapshot.forEach(child => {
+                    dues.push({ id: child.key, ...child.val() });
+                });
+                renderDues();
+                renderDueHistory();
+                updateDuesSummary();
+            });
+
+            onValue(ref(db, 'settings/businessRoi'), (snapshot) => {
+                businessRoi = snapshot.val() || 24;
+                document.getElementById('roiCurrent').textContent = `Current setting: ${businessRoi}% annual return assumed on working capital.`;
+            });
+        }
+
+        // ---------- AUTHENTICATION ----------
+
+        function showAuthError(msg) {
+            const el = document.getElementById('authError');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+        function clearAuthError() {
+            document.getElementById('authError').style.display = 'none';
+        }
+
+        function friendlyAuthError(code) {
+            const map = {
+                'auth/invalid-email': 'That email address looks invalid.',
+                'auth/user-not-found': 'No account found with this email.',
+                'auth/wrong-password': 'Incorrect password.',
+                'auth/invalid-credential': 'Incorrect email or password.',
+                'auth/missing-password': 'Please enter your password.',
+                'auth/email-already-in-use': 'An account already exists with this email. Try logging in instead.',
+                'auth/weak-password': 'Password is too weak (minimum 6 characters).',
+                'auth/popup-closed-by-user': 'Google sign-in was cancelled.',
+                'auth/network-request-failed': 'Network error. Please check your connection.',
+                'auth/too-many-requests': 'Too many attempts. Please wait a bit and try again.'
+            };
+            return map[code] || 'Something went wrong. Please try again.';
+        }
+
+        window.showAuthPanel = function(panel) {
+            clearAuthError();
+            document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(panel + 'Panel').classList.add('active');
+        }
+
+        window.handleLogin = function() {
+            clearAuthError();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
+
+            signInWithEmailAndPassword(auth, email, password)
+                .catch(err => showAuthError(friendlyAuthError(err.code)));
+        }
+
+        window.handleRegister = function() {
+            clearAuthError();
+            const name = document.getElementById('registerName').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const confirm = document.getElementById('registerConfirm').value;
+
+            if (!name || !email || !password || !confirm) { showAuthError('Please fill in all fields.'); return; }
+            if (password.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+            if (password !== confirm) { showAuthError('Passwords do not match.'); return; }
+
+            createUserWithEmailAndPassword(auth, email, password)
+                .then(cred => updateProfile(cred.user, { displayName: name }))
+                .catch(err => showAuthError(friendlyAuthError(err.code)));
+        }
+
+        window.handleGoogleLogin = function() {
+            clearAuthError();
+            signInWithPopup(auth, googleProvider)
+                .catch(err => showAuthError(friendlyAuthError(err.code)));
+        }
+
+        window.handleForgotPassword = function() {
+            clearAuthError();
+            const email = document.getElementById('forgotEmail').value.trim();
+            if (!email) { showAuthError('Please enter your email address.'); return; }
+
+            sendPasswordResetEmail(auth, email)
+                .then(() => {
+                    Swal.fire('Check your inbox', `A password reset link has been sent to ${email}`, 'success');
+                    showAuthPanel('login');
+                })
+                .catch(err => showAuthError(friendlyAuthError(err.code)));
+        }
+
+        window.handleLogout = function() {
+            Swal.fire({
+                title: 'Logout?', icon: 'question',
+                showCancelButton: true, confirmButtonColor: '#6366f1'
+            }).then(r => { if (r.isConfirmed) signOut(auth); });
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            const overlay = document.getElementById('authOverlay');
+            const appContainer = document.getElementById('appContainer');
+            if (user) {
+                overlay.style.display = 'none';
+                appContainer.style.display = 'block';
+                document.getElementById('userEmailDisplay').textContent = user.displayName ? `${user.displayName} (${user.email})` : user.email;
+                if (!listenersInitialized) {
+                    listenersInitialized = true;
+                    initAppDataListeners();
+                }
+            } else {
+                overlay.style.display = 'flex';
+                appContainer.style.display = 'none';
+            }
+        });
+
+        // ---------- END AUTHENTICATION ----------
+
+
+        window.addTransaction = function() {
+            const type = document.getElementById('type').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const category = document.getElementById('category').value;
+            const note = document.getElementById('note').value;
+            const date = document.getElementById('date').value;
+
+            if (!amount ||!category ||!date) {
+                Swal.fire('Error', 'Please fill amount, category and date', 'error');
+                return;
+            }
+
+            push(ref(db, 'transactions'), {
+                type, amount, category, note, date,
+                timestamp: Date.now()
+            });
+
+            document.getElementById('amount').value = '';
+            document.getElementById('note').value = '';
+            Swal.fire('Success', 'Transaction added!', 'success');
+        }
+
+        window.setBudget = function() {
+            const category = document.getElementById('budgetCategory').value;
+            const amount = parseFloat(document.getElementById('budgetAmount').value);
+            if (!amount) return;
+
+            set(ref(db, `budgets/${category}`), amount);
+            document.getElementById('budgetAmount').value = '';
+            Swal.fire('Success', `Budget set for ${category}`, 'success');
+        }
+
+        function renderBudgets() {
+            const list = document.getElementById('budgetList');
+            list.innerHTML = '';
+            for (let cat in budgets) {
+                const spent = getCategorySpent(cat);
+                const percent = Math.min((spent / budgets[cat]) * 100, 100);
+                list.innerHTML += `
+                    <div style="margin-bottom:12px">
+                        <div style="display:flex;justify-content:space-between;font-size:13px">
+                            <span>${cat}</span>
+                            <span>₹${spent} / ₹${budgets[cat]}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" style="width:${percent}%;background:${percent>90? 'var(--danger)': 'var(--primary)'}"></div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // ---------- DUES & PAYMENT TIMING MODULE ----------
+
+        window.addDue = function() {
+            const direction = document.getElementById('dueDirection').value;
+            const party = document.getElementById('dueParty').value;
+            const amount = parseFloat(document.getElementById('dueAmount').value);
+            const billDate = document.getElementById('dueBillDate').value;
+            const dueDate = document.getElementById('dueDate').value;
+            const discountPercent = parseFloat(document.getElementById('dueDiscountPercent').value) || 0;
+            const discountCutoff = document.getElementById('dueDiscountCutoff').value || null;
+            const penaltyPercent = parseFloat(document.getElementById('duePenaltyPercent').value) || 0;
+            const note = document.getElementById('dueNote').value;
+
+            if (!party || !amount || !billDate || !dueDate) {
+                Swal.fire('Error', 'Please fill party, amount, bill date and due date', 'error');
+                return;
+            }
+
+            push(ref(db, 'dues'), {
+                direction, party, amount, billDate, dueDate,
+                discountPercent, discountCutoff, penaltyPercent, note,
+                status: 'pending',
+                timestamp: Date.now()
+            });
+
+            document.getElementById('dueParty').value = '';
+            document.getElementById('dueAmount').value = '';
+            document.getElementById('dueDate').value = '';
+            document.getElementById('dueDiscountPercent').value = '';
+            document.getElementById('dueDiscountCutoff').value = '';
+            document.getElementById('duePenaltyPercent').value = '';
+            document.getElementById('dueNote').value = '';
+            Swal.fire('Success', 'Due added!', 'success');
+        }
+
+        window.saveRoi = function() {
+            const val = parseFloat(document.getElementById('businessRoi').value);
+            if (!val) { Swal.fire('Error', 'Enter a valid % number', 'error'); return; }
+            set(ref(db, 'settings/businessRoi'), val);
+            document.getElementById('businessRoi').value = '';
+            Swal.fire('Saved', `Business ROI set to ${val}% annual`, 'success');
+        }
+
+        function daysBetween(d1, d2) {
+            return Math.round((new Date(d2) - new Date(d1)) / 86400000);
+        }
+
+        function renderDues() {
+            const pending = dues.filter(d => d.status === 'pending')
+                .sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
+            const list = document.getElementById('duesList');
+
+            if (pending.length === 0) {
+                list.innerHTML = '<p style="color:#64748b;font-size:14px">No pending dues. You\'re all caught up.</p>';
+                return;
+            }
+
+            list.innerHTML = pending.map(d => {
+                const daysLeft = daysBetween(new Date().toISOString().slice(0,10), d.dueDate);
+                let badge;
+                if (daysLeft < 0) badge = `<span class="badge badge-danger">${Math.abs(daysLeft)} days OVERDUE</span>`;
+                else if (daysLeft <= 3) badge = `<span class="badge badge-warning">Due in ${daysLeft}d</span>`;
+                else badge = `<span class="badge badge-success">Due in ${daysLeft}d</span>`;
+
+                const discountNote = d.discountPercent ? `<br>Early discount: ${d.discountPercent}% till ${d.discountCutoff || d.dueDate}` : '';
+                const penaltyNote = d.penaltyPercent ? `<br>Late penalty: ${d.penaltyPercent}%/month` : '';
+
+                return `
+                    <div class="due-item">
+                        <div>
+                            <strong>${d.party}</strong>
+                            <span class="badge ${d.direction==='payable' ? 'badge-danger' : 'badge-success'}" style="margin-left:6px">
+                                ${d.direction === 'payable' ? 'You Pay' : 'You Receive'}
+                            </span>
+                            <div class="due-meta">₹${d.amount.toLocaleString('en-IN')} · Due ${d.dueDate}${discountNote}${penaltyNote}${d.note ? '<br>'+d.note : ''}</div>
+                        </div>
+                        <div style="text-align:right">
+                            ${badge}<br>
+                            <button class="btn btn-sm btn-success" style="margin-top:6px" onclick="markDuePaid('${d.id}')">
+                                <i class="fas fa-check"></i> ${d.direction==='payable' ? 'Mark Paid' : 'Mark Received'}
+                            </button>
+                            <button class="btn btn-sm btn-danger" style="margin-top:6px" onclick="deleteDue('${d.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.deleteDue = function(id) {
+            Swal.fire({
+                title: 'Delete this due?', icon: 'warning',
+                showCancelButton: true, confirmButtonColor: '#ef4444'
+            }).then(r => { if (r.isConfirmed) remove(ref(db, `dues/${id}`)); });
+        }
+
+        // Core calculation: was holding/timing the payment a GOOD or BAD decision, and by how much %?
+        function computeOutcome(due, paidDate) {
+            const amount = due.amount;
+            const dailyRoi = (businessRoi / 100) / 365;
+
+            // Days the cash was actually held by the business before settling, from bill date
+            const daysHeld = Math.max(0, daysBetween(due.billDate, paidDate));
+            const daysLateFromDue = daysBetween(due.dueDate, paidDate); // positive = late, negative = early
+
+            let discountAmount = 0;
+            if (due.discountPercent) {
+                const cutoff = due.discountCutoff || due.dueDate;
+                if (new Date(paidDate) <= new Date(cutoff)) {
+                    discountAmount = amount * (due.discountPercent / 100);
+                }
+            }
+
+            let penaltyAmount = 0;
+            if (due.penaltyPercent && daysLateFromDue > 0) {
+                penaltyAmount = amount * (due.penaltyPercent / 100) * (daysLateFromDue / 30);
+            }
+
+            let opportunityAmount = 0;
+            if (due.direction === 'payable') {
+                // Benefit of keeping cash in the business an extra `daysHeld` days
+                opportunityAmount = amount * dailyRoi * daysHeld;
+            } else {
+                // Receivable: every day collection is delayed past due date is cash you don't have working for you
+                const daysOverdue = Math.max(0, daysLateFromDue);
+                opportunityAmount = -(amount * dailyRoi * daysOverdue);
+            }
+
+            const netAmount = opportunityAmount + discountAmount - penaltyAmount;
+            const netPercent = (netAmount / amount) * 100;
+
+            return {
+                daysHeld, daysLateFromDue,
+                discountAmount: Math.round(discountAmount),
+                penaltyAmount: Math.round(penaltyAmount),
+                opportunityAmount: Math.round(opportunityAmount),
+                netAmount: Math.round(netAmount),
+                netPercent: Math.round(netPercent * 10) / 10,
+                verdict: netAmount >= 0 ? 'GOOD' : 'LOSS'
+            };
+        }
+
+        window.markDuePaid = function(id) {
+            const due = dues.find(d => d.id === id);
+            if (!due) return;
+
+            Swal.fire({
+                title: due.direction === 'payable' ? 'Confirm Payment' : 'Confirm Receipt',
+                html: `<label style="font-size:13px">Actual date money moved:</label>
+                       <input type="date" id="actualDate" class="swal2-input" value="${new Date().toISOString().slice(0,10)}">`,
+                confirmButtonText: 'Calculate Result',
+                preConfirm: () => document.getElementById('actualDate').value
+            }).then(result => {
+                if (!result.isConfirmed) return;
+                const paidDate = result.value;
+                const outcome = computeOutcome(due, paidDate);
+                const actualCash = due.direction === 'payable'
+                    ? Math.round(due.amount - outcome.discountAmount + outcome.penaltyAmount)
+                    : due.amount;
+
+                Swal.fire({
+                    title: outcome.verdict === 'GOOD' ? 'Good move! 👍' : 'This cost you money',
+                    html: `
+                        <div style="text-align:left;font-size:14px">
+                        <p>Cash held for <b>${outcome.daysHeld} days</b> ${outcome.daysLateFromDue>0?`(${outcome.daysLateFromDue} days past due date)`:''}</p>
+                        ${outcome.discountAmount ? `<p>Early discount captured: <span class="success-text">+₹${outcome.discountAmount}</span></p>` : ''}
+                        ${outcome.penaltyAmount ? `<p>Late penalty/interest paid: <span class="danger-text">-₹${outcome.penaltyAmount}</span></p>` : ''}
+                        <p>Opportunity value of holding cash at ${businessRoi}% ROI: <span class="${outcome.opportunityAmount>=0?'success-text':'danger-text'}">${outcome.opportunityAmount>=0?'+':''}₹${outcome.opportunityAmount}</span></p>
+                        <hr>
+                        <p style="font-size:16px"><b>Net Result: <span class="${outcome.verdict==='GOOD'?'verdict-good':'verdict-bad'}">${outcome.netAmount>=0?'+':''}₹${outcome.netAmount} (${outcome.netPercent>=0?'+':''}${outcome.netPercent}%)</span></b></p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Save & Record Transaction'
+                }).then(r2 => {
+                    if (!r2.isConfirmed) return;
+                    set(ref(db, `dues/${id}`), {
+                        ...due, status: 'paid', paidDate, outcome
+                    });
+                    push(ref(db, 'transactions'), {
+                        type: due.direction === 'payable' ? 'expense' : 'income',
+                        amount: actualCash,
+                        category: due.direction === 'payable' ? 'Dues Payment' : 'Dues Collection',
+                        note: `${due.party}${due.note ? ' - ' + due.note : ''}`,
+                        date: paidDate,
+                        timestamp: Date.now()
+                    });
+                });
+            });
+        }
+
+        function renderDueHistory() {
+            const settled = dues.filter(d => d.status === 'paid' && d.outcome)
+                .sort((a,b) => new Date(b.paidDate) - new Date(a.paidDate));
+            const list = document.getElementById('dueHistoryList');
+
+            if (settled.length === 0) {
+                list.innerHTML = '<p style="color:#64748b;font-size:14px">No settled dues yet - results will appear here once you mark dues paid/received.</p>';
+            } else {
+                list.innerHTML = settled.slice(0, 20).map(d => `
+                    <div class="expense-item">
+                        <div>
+                            <strong>${d.party}</strong> <span class="due-meta">(${d.direction==='payable'?'Paid':'Received'} ${d.paidDate})</span>
+                            <div class="due-meta">₹${d.amount.toLocaleString('en-IN')} · held ${d.outcome.daysHeld}d</div>
+                        </div>
+                        <div style="text-align:right">
+                            <span class="${d.outcome.verdict==='GOOD'?'verdict-good':'verdict-bad'}">
+                                ${d.outcome.netAmount>=0?'+':''}₹${d.outcome.netAmount} (${d.outcome.netPercent>=0?'+':''}${d.outcome.netPercent}%)
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const thisMonth = new Date().toISOString().slice(0,7);
+            const monthSettled = settled.filter(d => d.paidDate.startsWith(thisMonth));
+            const totalNet = monthSettled.reduce((s,d) => s + d.outcome.netAmount, 0);
+            const totalBase = monthSettled.reduce((s,d) => s + d.amount, 0);
+            const totalPct = totalBase ? Math.round((totalNet/totalBase)*1000)/10 : 0;
+            document.getElementById('timingSummary').innerHTML =
+                monthSettled.length
+                ? `This month you settled ${monthSettled.length} due(s). Net result from payment timing: <b class="${totalNet>=0?'verdict-good':'verdict-bad'}">${totalNet>=0?'+':''}₹${totalNet.toLocaleString('en-IN')} (${totalPct>=0?'+':''}${totalPct}%)</b>`
+                : 'No dues settled this month yet.';
+
+            document.getElementById('timingResult').textContent = `₹${totalNet.toLocaleString('en-IN')}`;
+            document.getElementById('timingResult').className = `card-value ${totalNet>=0?'success-text':'danger-text'}`;
+            document.getElementById('timingResultPct').innerHTML = monthSettled.length
+                ? `<span class="${totalPct>=0?'verdict-good':'verdict-bad'}">${totalPct>=0?'+':''}${totalPct}% vs amount settled</span>` : '';
+        }
+
+        function updateDuesSummary() {
+            const pending = dues.filter(d => d.status === 'pending');
+            const totalPayable = pending.filter(d => d.direction === 'payable').reduce((s,d) => s + d.amount, 0);
+            const totalReceivable = pending.filter(d => d.direction === 'receivable').reduce((s,d) => s + d.amount, 0);
+            const overdue = pending.filter(d => daysBetween(new Date().toISOString().slice(0,10), d.dueDate) < 0).length;
+
+            document.getElementById('totalPayable').textContent = `₹${totalPayable.toLocaleString('en-IN')}`;
+            document.getElementById('totalReceivable').textContent = `₹${totalReceivable.toLocaleString('en-IN')}`;
+            document.getElementById('overdueCount').textContent = overdue;
+            document.getElementById('overdueCount').className = overdue > 0 ? 'card-value danger-text' : 'card-value';
+        }
+
+        // ---------- END DUES MODULE ----------
+
+
+        function getCategorySpent(category) {
+            const thisMonth = new Date().toISOString().slice(0,7);
+            return transactions
+               .filter(t => t.type === 'expense' && t.category === category && t.date.startsWith(thisMonth))
+               .reduce((sum, t) => sum + t.amount, 0);
+        }
+
+        function checkBudgetAlerts() {
+            let alerts = 0;
+            for (let cat in budgets) {
+                if (getCategorySpent(cat) > budgets[cat]) alerts++;
+            }
+            document.getElementById('alertCount').textContent = alerts;
+            if (alerts > 0) {
+                document.getElementById('alertCount').className = 'card-value danger-text';
+            }
+        }
+
+        function updateUI() {
+            const thisMonth = new Date().toISOString().slice(0,7);
+            const now = new Date();
+            const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonth = lastMonthDate.toISOString().slice(0,7);
+
+            const monthTx = transactions.filter(t => t.date.startsWith(thisMonth));
+            const lastMonthTx = transactions.filter(t => t.date.startsWith(lastMonth));
+
+            const income = monthTx.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
+            const expense = monthTx.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+            const balance = income - expense;
+
+            const lastIncome = lastMonthTx.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
+            const lastExpense = lastMonthTx.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+            const lastBalance = lastIncome - lastExpense;
+
+            document.getElementById('monthIncome').textContent = `₹${income.toLocaleString('en-IN')}`;
+            document.getElementById('monthExpense').textContent = `₹${expense.toLocaleString('en-IN')}`;
+            document.getElementById('balance').textContent = `₹${balance.toLocaleString('en-IN')}`;
+
+            renderDelta('incomeDelta', income, lastIncome, true);
+            renderDelta('expenseDelta', expense, lastExpense, false);
+            renderDelta('balanceDelta', balance, lastBalance, true);
+
+            const list = document.getElementById('transactionList');
+            list.innerHTML = transactions.slice(0,20).map(t => `
+                <div class="expense-item">
+                    <div>
+                        <strong>${t.category}</strong><br>
+                        <small style="color:#64748b">${t.date} ${t.note? '| '+t.note : ''}</small>
+                    </div>
+                    <div style="text-align:right">
+                        <div class="${t.type==='income'?'success-text':'danger-text'}" style="font-weight:600">
+                            ${t.type==='income'?'+':'-'}₹${t.amount.toLocaleString('en-IN')}
+                        </div>
+                        <button class="btn btn-sm btn-danger" onclick="deleteTx('${t.id}')" style="margin-top:4px">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            updateChart();
+            checkBudgetAlerts();
+        }
+
+        function renderDelta(elId, current, previous, higherIsGood) {
+            const el = document.getElementById(elId);
+            if (!previous) { el.innerHTML = '<span style="color:#94a3b8">No data for last month</span>'; return; }
+            const pct = Math.round(((current - previous) / previous) * 1000) / 10;
+            const isGood = higherIsGood ? pct >= 0 : pct <= 0;
+            const arrow = pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+            el.innerHTML = `<i class="fas ${arrow}"></i> <span class="${isGood?'success-text':'danger-text'}">${pct>=0?'+':''}${pct}%</span> vs last month`;
+        }
+
+        window.deleteTx = function(id) {
+            Swal.fire({
+                title: 'Delete?', text: "This cannot be undone", icon: 'warning',
+                showCancelButton: true, confirmButtonColor: '#ef4444'
+            }).then((result) => {
+                if (result.isConfirmed) remove(ref(db, `transactions/${id}`));
+            });
+        }
+
+        window.changeReport = function(type) {
+            currentReport = type;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            updateChart();
+        }
+
+        function updateChart() {
+            const ctx = document.getElementById('expenseChart');
+            const data = getChartData();
+
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Income',
+                            data: data.income,
+                            backgroundColor: '#10b981'
+                        },
+                        {
+                            label: 'Expense',
+                            data: data.expense,
+                            backgroundColor: '#ef4444'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'top' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function getChartData() {
+            let labels = [], income = [], expense = [];
+            const now = new Date();
+
+            if (currentReport === 'week') {
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date(now);
+                    d.setDate(d.getDate() - i);
+                    const dateStr = d.toISOString().slice(0,10);
+                    labels.push(d.toLocaleDateString('en-IN', {weekday:'short'}));
+                    const dayTx = transactions.filter(t => t.date === dateStr);
+                    income.push(dayTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0));
+                    expense.push(dayTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0));
+                }
+            } else if (currentReport === 'month') {
+                for (let i = 11; i >= 0; i--) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const monthStr = d.toISOString().slice(0,7);
+                    labels.push(d.toLocaleDateString('en-IN', {month:'short'}));
+                    const monthTx = transactions.filter(t => t.date.startsWith(monthStr));
+                    income.push(monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0));
+                    expense.push(monthTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0));
+                }
+            } else {
+                for (let i = 4; i >= 0; i--) {
+                    const year = now.getFullYear() - i;
+                    labels.push(year);
+                    const yearTx = transactions.filter(t => t.date.startsWith(year));
+                    income.push(yearTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0));
+                    expense.push(yearTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0));
+                }
+            }
+            return { labels, income, expense };
+        }
+
+        window.exportData = function() {
+            const data = { transactions, budgets, dues, businessRoi, exportDate: new Date().toISOString() };
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vyapar-backup-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            Swal.fire('Success', 'Backup downloaded!', 'success');
+        }
+
+        window.importData = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.transactions) set(ref(db, 'transactions'), data.transactions);
+                    if (data.budgets) set(ref(db, 'budgets'), data.budgets);
+                    if (data.dues) set(ref(db, 'dues'), data.dues);
+                    if (data.businessRoi) set(ref(db, 'settings/businessRoi'), data.businessRoi);
+                    Swal.fire('Success', 'Data imported!', 'success');
+                } catch (err) {
+                    Swal.fire('Error', 'Invalid file', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        window.setupAutoBackup = function() {
+            Swal.fire({
+                title: 'Auto Backup Setup',
+                html: `
+                    <p>Firebase already auto-saves every change in real-time.</p>
+                    <p>For extra safety, set daily email backup:</p>
+                    <input id="backupEmail" class="swal2-input" placeholder="Your email">
+                    <select id="backupTime" class="swal2-input">
+                        <option value="daily">Daily at 11 PM</option>
+                        <option value="weekly">Weekly Sunday</option>
+                    </select>
+                `,
+                confirmButtonText: 'Enable',
+                preConfirm: () => {
+                    return {
+                        email: document.getElementById('backupEmail').value,
+                        time: document.getElementById('backupTime').value
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    set(ref(db, 'settings/autoBackup'), result.value);
+                    Swal.fire('Enabled!', 'Auto backup will run as scheduled via Firebase Functions', 'success');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
