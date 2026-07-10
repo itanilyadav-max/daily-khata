@@ -411,9 +411,10 @@
                     <option value="income">Income</option>
                 </select>
                 <input type="number" id="amount" placeholder="Amount ₹" />
-                <select id="category">
+                <select id="category" onchange="handleCategorySelectChange()">
                     <option value="">Select Category</option>
-                    <optgroup label="💰 Income">
+                    <option value="__add_new__" style="color:#6366f1;font-weight:700;">➕ Add New Category...</option>
+                    <optgroup label="💰 Income" id="incomeOptgroup">
                         <option value="Sales">Sales</option>
                         <option value="Investment Sale">Investment Sale</option>
                     </optgroup>
@@ -494,8 +495,21 @@
                         <option value="Transfer from Company">Transfer from Company</option>
                         <option value="Miscellaneous - Others">Miscellaneous - Others</option>
                     </optgroup>
+                    <optgroup label="✨ Custom Expense Categories" id="customCategoryGroup"></optgroup>
                     <option value="Other">Other</option>
                 </select>
+                <div id="newCategoryRow" style="display:none;">
+                    <input type="text" id="newCategoryName" placeholder="New category name (e.g. Compost Turning Service)" style="margin-bottom:8px;">
+                    <div style="display:flex;gap:8px;margin-bottom:8px;">
+                        <button type="button" id="newCatTypeIncomeBtn" class="btn btn-sm" style="flex:1;" onclick="setNewCatType('income')">💰 Income</button>
+                        <button type="button" id="newCatTypeExpenseBtn" class="btn btn-sm" style="flex:1;background:#e2e8f0;color:#334155;" onclick="setNewCatType('expense')">💸 Expense</button>
+                    </div>
+                    <p id="newCatTypePreview" style="font-size:12px;color:#64748b;margin:-2px 0 10px;">Will appear under: <strong>💰 Income</strong></p>
+                    <div style="display:flex;gap:8px;margin-bottom:12px;">
+                        <button class="btn btn-sm" style="flex:1;" onclick="confirmAddCategory()"><i class="fas fa-check"></i> Add Category</button>
+                        <button class="btn btn-sm" style="flex:1;background:#e2e8f0;color:#334155;" onclick="cancelAddCategory()">Cancel</button>
+                    </div>
+                </div>
                 <input type="text" id="note" placeholder="Note: Invoice no, party name" />
                 <input type="date" id="date" />
                 <button class="btn" onclick="addTransaction()" style="width:100%">
@@ -505,7 +519,7 @@
 
             <div class="card">
                 <h3 style="margin-bottom:16px">Set Budget Limits</h3>
-                <select id="budgetCategory" onchange="checkExistingBudget()">
+                <select id="budgetCategory">
                     <optgroup label="🌱 Raw Materials">
                         <option value="Raw Material - Cocopeat">Raw Material - Cocopeat</option>
                         <option value="Raw Materials - Vermicompost">Raw Materials - Vermicompost</option>
@@ -582,35 +596,14 @@
                         <option value="Personal Expense">Personal Expense</option>
                         <option value="Miscellaneous - Others">Miscellaneous - Others</option>
                     </optgroup>
+                    <optgroup label="✨ Custom Expense Categories" id="customBudgetCategoryGroup"></optgroup>
                     <option value="Other">Other</option>
                 </select>
                 <input type="number" id="budgetAmount" placeholder="Monthly Budget ₹" />
-                <div id="budgetHint" style="font-size:12px;color:#64748b;margin:-8px 0 12px"></div>
-                <button class="btn btn-success" onclick="setBudget()" style="width:100%" id="budgetSubmitBtn">
-                    <i class="fas fa-save"></i> <span id="budgetSubmitBtnLabel">Set Budget</span>
+                <button class="btn btn-success" onclick="setBudget()" style="width:100%">
+                    <i class="fas fa-save"></i> Set Budget
                 </button>
-            </div>
-        </div>
-
-        <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-                <h3>Your Budgets</h3>
-                <span style="font-size:13px;color:#64748b" id="budgetSummaryText"></span>
-            </div>
-            <div style="overflow-x:auto">
-                <table style="width:100%;border-collapse:collapse;font-size:13px">
-                    <thead>
-                        <tr style="text-align:left;border-bottom:2px solid var(--border)">
-                            <th style="padding:8px 6px">Category</th>
-                            <th style="padding:8px 6px;text-align:right">Budget</th>
-                            <th style="padding:8px 6px;text-align:right">Spent</th>
-                            <th style="padding:8px 6px;text-align:right">Remaining</th>
-                            <th style="padding:8px 6px">Usage</th>
-                            <th style="padding:8px 6px;text-align:center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="budgetTableBody"></tbody>
-                </table>
+                <div id="budgetList" style="margin-top:16px"></div>
             </div>
         </div>
 
@@ -795,11 +788,24 @@
         let transactions = [];
         let budgets = {};
         let dues = [];
+        let customCategories = [];
         let businessRoi = 24; // default assumed annual return on working capital %
         let currentReport = 'month';
         let chart;
         let categoryChart;
         let calendarDate = new Date();
+
+        // .toISOString() always converts to UTC first — for India (UTC+5:30), local
+        // midnight on the 1st of a month becomes 6:30pm UTC the PREVIOUS day, so
+        // .toISOString().slice(0,7) silently reads off the wrong (earlier) month every
+        // time. These helpers read the date's own local year/month/day components
+        // instead, so "this month" and "today" always mean what the user's clock says.
+        function toLocalYMD(d) {
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+        function toLocalYM(d) {
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }
 
         function initAppDataListeners() {
             // Set today as default date
@@ -837,6 +843,52 @@
                 businessRoi = snapshot.val() || 24;
                 document.getElementById('roiCurrent').textContent = `Current setting: ${businessRoi}% annual return assumed on working capital.`;
             });
+
+            // Custom categories the user has added — injected into both the transaction
+            // and budget dropdowns under "✨ Custom Categories" so they behave exactly like
+            // the built-in ones (usable everywhere: transactions, budgets, filters, charts).
+            onValue(ref(db, 'customCategories'), (snapshot) => {
+                customCategories = [];
+                snapshot.forEach(child => {
+                    customCategories.push({ id: child.key, ...child.val() });
+                });
+                renderCustomCategoryOptions();
+            });
+        }
+
+        function renderCustomCategoryOptions() {
+            const incomeGroup = document.getElementById('incomeOptgroup');
+            const expenseGroupTx = document.getElementById('customCategoryGroup');
+            const expenseGroupBudget = document.getElementById('customBudgetCategoryGroup');
+
+            // Income and Expense custom categories are handled separately: income ones get
+            // inserted directly into the real "💰 Income" group (alongside Sales / Investment
+            // Sale) so they look and behave identically to the built-in options — no more
+            // ugly "(Income)" suffix needed since the grouping itself now makes it clear.
+            const incomeCats = customCategories.filter(c => c.type === 'income').sort((a, b) => a.name.localeCompare(b.name));
+            const expenseCats = customCategories.filter(c => c.type !== 'income').sort((a, b) => a.name.localeCompare(b.name));
+
+            if (incomeGroup) {
+                // Clear out previously-injected custom options first so re-renders (every
+                // time Firebase pushes an update) don't duplicate entries — but leave the
+                // two static built-in options (Sales, Investment Sale) untouched.
+                incomeGroup.querySelectorAll('.custom-added-opt').forEach(o => o.remove());
+                incomeCats.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.name;
+                    opt.textContent = c.name;
+                    opt.className = 'custom-added-opt';
+                    incomeGroup.appendChild(opt);
+                });
+            }
+
+            // Expense-type custom categories only — budgets don't apply to income, so the
+            // Set Budget dropdown should never offer an income category as an option.
+            const expenseOptionsHtml = expenseCats
+                .map(c => `<option value="${c.name.replace(/"/g,'&quot;')}">${c.name}</option>`)
+                .join('');
+            if (expenseGroupTx) expenseGroupTx.innerHTML = expenseOptionsHtml;
+            if (expenseGroupBudget) expenseGroupBudget.innerHTML = expenseOptionsHtml;
         }
 
         // ---------- AUTHENTICATION ----------
@@ -951,12 +1003,86 @@
         // ---------- END AUTHENTICATION ----------
 
 
+        // ---------- ADD NEW CATEGORY ----------
+
+        let newCategoryType = 'income'; // explicit choice made visible in the Add Category box — never silently inherited
+
+        window.setNewCatType = function(type) {
+            newCategoryType = type;
+            document.getElementById('newCatTypeIncomeBtn').style.background = type === 'income' ? '' : '#e2e8f0';
+            document.getElementById('newCatTypeIncomeBtn').style.color = type === 'income' ? '' : '#334155';
+            document.getElementById('newCatTypeExpenseBtn').style.background = type === 'expense' ? '' : '#e2e8f0';
+            document.getElementById('newCatTypeExpenseBtn').style.color = type === 'expense' ? '' : '#334155';
+            document.getElementById('newCatTypePreview').innerHTML = `Will appear under: <strong>${type === 'income' ? '💰 Income' : '💸 Expense'}</strong>`;
+        }
+
+        window.handleCategorySelectChange = function() {
+            const sel = document.getElementById('category');
+            const row = document.getElementById('newCategoryRow');
+            if (sel.value === '__add_new__') {
+                row.style.display = 'block';
+                document.getElementById('newCategoryName').value = '';
+                // Default the toggle to match the Type dropdown already selected — but it
+                // stays fully visible and overridable right here, so nothing is hidden or
+                // silently assumed.
+                setNewCatType(document.getElementById('type').value === 'income' ? 'income' : 'expense');
+                document.getElementById('newCategoryName').focus();
+            } else {
+                row.style.display = 'none';
+            }
+        }
+
+        window.cancelAddCategory = function() {
+            document.getElementById('newCategoryRow').style.display = 'none';
+            document.getElementById('category').value = '';
+        }
+
+        window.confirmAddCategory = function() {
+            const name = document.getElementById('newCategoryName').value.trim();
+            if (!name) { Swal.fire('Error', 'Please type a category name', 'error'); return; }
+
+            // Guard against duplicates (case-insensitive) — checks both the fixed dropdown
+            // options already in the DOM and any custom categories already added.
+            const existingNames = Array.from(document.querySelectorAll('#category option'))
+                .map(o => o.value.toLowerCase())
+                .filter(v => v && v !== '__add_new__');
+            if (existingNames.includes(name.toLowerCase())) {
+                Swal.fire('Already exists', `"${name}" is already a category — just select it from the list.`, 'warning');
+                return;
+            }
+
+            const type = newCategoryType; // the explicit toggle in this box — never silently inherited from elsewhere
+            push(ref(db, 'customCategories'), { name, type, addedAt: Date.now() });
+
+            // Firebase's onValue listener re-renders the dropdown options asynchronously —
+            // wait a tick for that, then select the newly added category automatically,
+            // AND sync the Type dropdown to match it — so the transaction you're about to
+            // submit can't end up mismatched (e.g. Type=Expense with an Income category).
+            setTimeout(() => {
+                document.getElementById('category').value = name;
+                document.getElementById('type').value = type;
+            }, 300);
+
+            document.getElementById('newCategoryRow').style.display = 'none';
+            Swal.fire('Added!', `"${name}" added under ${type === 'income' ? '💰 Income' : '💸 Expense'} — it's now selected, and the Type dropdown has been set to match. Just fill in amount and date, then Add Transaction.`, 'success');
+        }
+
         window.addTransaction = function() {
             const type = document.getElementById('type').value;
             const amount = parseFloat(document.getElementById('amount').value);
             const category = document.getElementById('category').value;
             const note = document.getElementById('note').value;
             const date = document.getElementById('date').value;
+
+            // Guard: "➕ Add New Category..." is just a trigger to open the name box below
+            // it — it isn't a real category. Without this check, hitting Add Transaction
+            // before finishing that step saves the literal placeholder as the category.
+            if (category === '__add_new__') {
+                Swal.fire('Finish adding your category first', 'Type the new category name in the box below and click "Add Category" — then it\'ll be selected automatically and you can submit.', 'info');
+                document.getElementById('newCategoryRow').style.display = 'block';
+                document.getElementById('newCategoryName').focus();
+                return;
+            }
 
             if (!amount ||!category ||!date) {
                 Swal.fire('Error', 'Please fill amount, category and date', 'error');
@@ -978,93 +1104,29 @@
             const amount = parseFloat(document.getElementById('budgetAmount').value);
             if (!amount) return;
 
-            const isUpdate = budgets[category] !== undefined;
             set(ref(db, `budgets/${category}`), amount);
             document.getElementById('budgetAmount').value = '';
-            document.getElementById('budgetHint').textContent = '';
-            document.getElementById('budgetSubmitBtnLabel').textContent = 'Set Budget';
-            Swal.fire('Success', `Budget ${isUpdate ? 'updated' : 'set'} for ${category}`, 'success');
-        }
-
-        window.checkExistingBudget = function() {
-            const category = document.getElementById('budgetCategory').value;
-            const hint = document.getElementById('budgetHint');
-            const label = document.getElementById('budgetSubmitBtnLabel');
-            if (budgets[category] !== undefined) {
-                document.getElementById('budgetAmount').value = budgets[category];
-                hint.textContent = `Already has a ₹${budgets[category].toLocaleString('en-IN')} limit - change the amount and submit to update it.`;
-                label.textContent = 'Update Budget';
-            } else {
-                document.getElementById('budgetAmount').value = '';
-                hint.textContent = '';
-                label.textContent = 'Set Budget';
-            }
-        }
-
-        window.editBudget = function(category) {
-            document.getElementById('budgetCategory').value = category;
-            checkExistingBudget();
-            document.getElementById('budgetCategory').scrollIntoView({ behavior: 'smooth', block: 'center' });
-            document.getElementById('budgetAmount').focus();
-        }
-
-        window.deleteBudget = function(category) {
-            Swal.fire({
-                title: 'Remove this budget?', text: `This will remove the limit for ${category}`, icon: 'warning',
-                showCancelButton: true, confirmButtonColor: '#ef4444'
-            }).then(result => {
-                if (result.isConfirmed) remove(ref(db, `budgets/${category}`));
-            });
+            Swal.fire('Success', `Budget set for ${category}`, 'success');
         }
 
         function renderBudgets() {
-            const tbody = document.getElementById('budgetTableBody');
-            const categories = Object.keys(budgets);
-
-            if (categories.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:#64748b">No budgets set yet - pick a category on the left and set a monthly limit.</td></tr>';
-                document.getElementById('budgetSummaryText').textContent = '';
-                return;
-            }
-
-            let totalBudget = 0, totalSpent = 0;
-            const rows = categories.map(cat => {
+            const list = document.getElementById('budgetList');
+            list.innerHTML = '';
+            for (let cat in budgets) {
                 const spent = getCategorySpent(cat);
-                const limit = budgets[cat];
-                const percent = Math.min((spent / limit) * 100, 100);
-                totalBudget += limit;
-                totalSpent += spent;
-
-                let status, statusClass;
-                if (spent >= limit) { status = 'Over Budget'; statusClass = 'badge-danger'; }
-                else if (percent >= 80) { status = 'Near Limit'; statusClass = 'badge-warning'; }
-                else { status = 'On Track'; statusClass = 'badge-success'; }
-
-                return { cat, spent, limit, percent, status, statusClass };
-            }).sort((a,b) => b.percent - a.percent);
-
-            const overallPct = totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0;
-            document.getElementById('budgetSummaryText').textContent =
-                `Total budgeted ₹${totalBudget.toLocaleString('en-IN')} · Spent ₹${totalSpent.toLocaleString('en-IN')} (${overallPct}%)`;
-
-            tbody.innerHTML = rows.map(r => `
-                <tr style="border-bottom:1px solid var(--border)">
-                    <td style="padding:8px 6px">${r.cat}</td>
-                    <td style="padding:8px 6px;text-align:right">₹${r.limit.toLocaleString('en-IN')}</td>
-                    <td style="padding:8px 6px;text-align:right">₹${r.spent.toLocaleString('en-IN')}</td>
-                    <td style="padding:8px 6px;text-align:right" class="${r.limit-r.spent<0?'danger-text':''}">₹${(r.limit-r.spent).toLocaleString('en-IN')}</td>
-                    <td style="padding:8px 6px;min-width:140px">
-                        <div class="progress" style="margin-bottom:4px">
-                            <div class="progress-bar" style="width:${r.percent}%;background:${r.percent>=100?'var(--danger)':(r.percent>=80?'#f59e0b':'var(--primary)')}"></div>
+                const percent = Math.min((spent / budgets[cat]) * 100, 100);
+                list.innerHTML += `
+                    <div style="margin-bottom:12px">
+                        <div style="display:flex;justify-content:space-between;font-size:13px">
+                            <span>${cat}</span>
+                            <span>₹${spent} / ₹${budgets[cat]}</span>
                         </div>
-                        <span class="badge ${r.statusClass}" style="font-size:10px">${r.status}</span>
-                    </td>
-                    <td style="padding:8px 6px;text-align:center;white-space:nowrap">
-                        <button class="btn btn-sm" onclick="editBudget('${r.cat}')" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteBudget('${r.cat}')" title="Delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-            `).join('');
+                        <div class="progress">
+                            <div class="progress-bar" style="width:${percent}%;background:${percent>90? 'var(--danger)': 'var(--primary)'}"></div>
+                        </div>
+                    </div>
+                `;
+            }
         }
 
         // ---------- DUES & PAYMENT TIMING MODULE ----------
@@ -1125,7 +1187,7 @@
             }
 
             list.innerHTML = pending.map(d => {
-                const daysLeft = daysBetween(new Date().toISOString().slice(0,10), d.dueDate);
+                const daysLeft = daysBetween(toLocalYMD(new Date()), d.dueDate);
                 let badge;
                 if (daysLeft < 0) badge = `<span class="badge badge-danger">${Math.abs(daysLeft)} days OVERDUE</span>`;
                 else if (daysLeft <= 3) badge = `<span class="badge badge-warning">Due in ${daysLeft}d</span>`;
@@ -1217,7 +1279,7 @@
             Swal.fire({
                 title: due.direction === 'payable' ? 'Confirm Payment' : 'Confirm Receipt',
                 html: `<label style="font-size:13px">Actual date money moved:</label>
-                       <input type="date" id="actualDate" class="swal2-input" value="${new Date().toISOString().slice(0,10)}">`,
+                       <input type="date" id="actualDate" class="swal2-input" value="${toLocalYMD(new Date())}">`,
                 confirmButtonText: 'Calculate Result',
                 preConfirm: () => document.getElementById('actualDate').value
             }).then(result => {
@@ -1281,7 +1343,7 @@
                 `).join('');
             }
 
-            const thisMonth = new Date().toISOString().slice(0,7);
+            const thisMonth = toLocalYM(new Date());
             const monthSettled = settled.filter(d => d.paidDate.startsWith(thisMonth));
             const totalNet = monthSettled.reduce((s,d) => s + d.outcome.netAmount, 0);
             const totalBase = monthSettled.reduce((s,d) => s + d.amount, 0);
@@ -1301,7 +1363,7 @@
             const pending = dues.filter(d => d.status === 'pending');
             const totalPayable = pending.filter(d => d.direction === 'payable').reduce((s,d) => s + d.amount, 0);
             const totalReceivable = pending.filter(d => d.direction === 'receivable').reduce((s,d) => s + d.amount, 0);
-            const overdue = pending.filter(d => daysBetween(new Date().toISOString().slice(0,10), d.dueDate) < 0).length;
+            const overdue = pending.filter(d => daysBetween(toLocalYMD(new Date()), d.dueDate) < 0).length;
 
             document.getElementById('totalPayable').textContent = `₹${totalPayable.toLocaleString('en-IN')}`;
             document.getElementById('totalReceivable').textContent = `₹${totalReceivable.toLocaleString('en-IN')}`;
@@ -1313,7 +1375,7 @@
 
 
         function getCategorySpent(category) {
-            const thisMonth = new Date().toISOString().slice(0,7);
+            const thisMonth = toLocalYM(new Date());
             return transactions
                .filter(t => t.type === 'expense' && t.category === category && t.date.startsWith(thisMonth))
                .reduce((sum, t) => sum + t.amount, 0);
@@ -1331,10 +1393,10 @@
         }
 
         function updateUI() {
-            const thisMonth = new Date().toISOString().slice(0,7);
+            const thisMonth = toLocalYM(new Date());
             const now = new Date();
             const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const lastMonth = lastMonthDate.toISOString().slice(0,7);
+            const lastMonth = toLocalYM(lastMonthDate);
 
             const monthTx = transactions.filter(t => t.date.startsWith(thisMonth));
             const lastMonthTx = transactions.filter(t => t.date.startsWith(lastMonth));
@@ -1411,22 +1473,29 @@
                 return;
             }
 
-            list.innerHTML = toShow.map(t => `
-                <div class="expense-item">
+            list.innerHTML = toShow.map(t => {
+                const isBroken = t.category === '__add_new__' || !t.category;
+                return `
+                <div class="expense-item" style="${isBroken ? 'background:#fef2f2;border-radius:8px;padding-left:8px;padding-right:8px;' : ''}">
                     <div>
-                        <strong>${t.category}</strong><br>
+                        <strong>${isBroken ? '⚠️ (unnamed category — click Edit to fix)' : t.category}</strong><br>
                         <small style="color:#64748b">${t.date} ${t.note? '| '+t.note : ''}</small>
                     </div>
                     <div style="text-align:right">
                         <div class="${t.type==='income'?'success-text':'danger-text'}" style="font-weight:600">
                             ${t.type==='income'?'+':'-'}₹${t.amount.toLocaleString('en-IN')}
                         </div>
-                        <button class="btn btn-sm btn-danger" onclick="deleteTx('${t.id}')" style="margin-top:4px">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;">
+                            <button class="btn btn-sm" style="background:#e0e7ff;color:#4338ca;" onclick="editTx('${t.id}')">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteTx('${t.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
-            `).join('');
+            `; }).join('');
         }
 
         function renderDelta(elId, current, previous, higherIsGood) {
@@ -1444,6 +1513,48 @@
                 showCancelButton: true, confirmButtonColor: '#ef4444'
             }).then((result) => {
                 if (result.isConfirmed) remove(ref(db, `transactions/${id}`));
+            });
+        }
+
+        window.editTx = function(id) {
+            const t = transactions.find(tx => tx.id === id);
+            if (!t) return;
+            const currentCategory = t.category === '__add_new__' ? '' : t.category;
+            Swal.fire({
+                title: 'Edit Transaction',
+                html: `
+                    <select id="swalType" class="swal2-input" style="width:85%;">
+                        <option value="expense" ${t.type==='expense'?'selected':''}>Expense</option>
+                        <option value="income" ${t.type==='income'?'selected':''}>Income</option>
+                    </select>
+                    <input id="swalAmount" type="number" class="swal2-input" style="width:85%;" placeholder="Amount ₹" value="${t.amount}">
+                    <input id="swalCategory" type="text" class="swal2-input" style="width:85%;" placeholder="Category name" value="${currentCategory.replace(/"/g,'&quot;')}">
+                    <input id="swalNote" type="text" class="swal2-input" style="width:85%;" placeholder="Note" value="${(t.note||'').replace(/"/g,'&quot;')}">
+                    <input id="swalDate" type="date" class="swal2-input" style="width:85%;" value="${t.date}">
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Save Changes',
+                confirmButtonColor: '#6366f1',
+                preConfirm: () => {
+                    const category = document.getElementById('swalCategory').value.trim();
+                    const amount = parseFloat(document.getElementById('swalAmount').value);
+                    const date = document.getElementById('swalDate').value;
+                    if (!category || !amount || !date) {
+                        Swal.showValidationMessage('Please fill category, amount and date');
+                        return false;
+                    }
+                    return {
+                        type: document.getElementById('swalType').value,
+                        amount, category,
+                        note: document.getElementById('swalNote').value,
+                        date
+                    };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    set(ref(db, `transactions/${id}`), { ...result.value, timestamp: t.timestamp || Date.now() });
+                    Swal.fire('Updated!', 'Transaction saved.', 'success');
+                }
             });
         }
 
@@ -1494,7 +1605,7 @@
                 for (let i = 6; i >= 0; i--) {
                     const d = new Date(now);
                     d.setDate(d.getDate() - i);
-                    const dateStr = d.toISOString().slice(0,10);
+                    const dateStr = toLocalYMD(d);
                     labels.push(d.toLocaleDateString('en-IN', {weekday:'short'}));
                     const dayTx = transactions.filter(t => t.date === dateStr);
                     income.push(dayTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0));
@@ -1503,7 +1614,7 @@
             } else if (currentReport === 'month') {
                 for (let i = 11; i >= 0; i--) {
                     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                    const monthStr = d.toISOString().slice(0,7);
+                    const monthStr = toLocalYM(d);
                     labels.push(d.toLocaleDateString('en-IN', {month:'short'}));
                     const monthTx = transactions.filter(t => t.date.startsWith(monthStr));
                     income.push(monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0));
@@ -1528,15 +1639,15 @@
             if (type === 'week') {
                 const end = new Date(now); end.setDate(end.getDate() - offset * 7);
                 const start = new Date(end); start.setDate(start.getDate() - 6);
-                const startStr = start.toISOString().slice(0,10);
-                const endStr = end.toISOString().slice(0,10);
+                const startStr = toLocalYMD(start);
+                const endStr = toLocalYMD(end);
                 return transactions.filter(t => t.date >= startStr && t.date <= endStr);
             } else if (type === 'year') {
                 const year = String(now.getFullYear() - offset);
                 return transactions.filter(t => t.date.startsWith(year));
             } else {
                 const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-                const monthStr = d.toISOString().slice(0,7);
+                const monthStr = toLocalYM(d);
                 return transactions.filter(t => t.date.startsWith(monthStr));
             }
         }
@@ -1698,14 +1809,14 @@
             }
 
             // Overdue dues
-            const overdue = dues.filter(d => d.status === 'pending' && daysBetween(new Date().toISOString().slice(0,10), d.dueDate) < 0);
+            const overdue = dues.filter(d => d.status === 'pending' && daysBetween(toLocalYMD(new Date()), d.dueDate) < 0);
             if (overdue.length > 0) {
                 const overdueAmt = overdue.reduce((s,d) => s + d.amount, 0);
                 insights.push({ icon: 'fa-clock', color: 'danger-text', text: `You have ${overdue.length} overdue ${overdue.length===1?'due':'dues'} worth ₹${overdueAmt.toLocaleString('en-IN')} - settle these first to avoid penalties.` });
             }
 
             // Payment timing result this month
-            const settledThisMonth = dues.filter(d => d.status === 'paid' && d.outcome && d.paidDate && d.paidDate.startsWith(new Date().toISOString().slice(0,7)));
+            const settledThisMonth = dues.filter(d => d.status === 'paid' && d.outcome && d.paidDate && d.paidDate.startsWith(toLocalYM(new Date())));
             if (settledThisMonth.length > 0) {
                 const netTotal = settledThisMonth.reduce((s,d) => s + d.outcome.netAmount, 0);
                 if (netTotal >= 0) {
@@ -1748,7 +1859,7 @@
 
             const firstDayOffset = new Date(year, month, 1).getDay();
             const totalDays = new Date(year, month + 1, 0).getDate();
-            const todayStr = new Date().toISOString().slice(0,10);
+            const todayStr = toLocalYMD(new Date());
 
             const dayTotals = {};
             let maxAmt = 0;
@@ -1831,7 +1942,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `vyapar-backup-${new Date().toISOString().slice(0,10)}.json`;
+            a.download = `vyapar-backup-${toLocalYMD(new Date())}.json`;
             a.click();
             Swal.fire('Success', 'Backup downloaded!', 'success');
         }
