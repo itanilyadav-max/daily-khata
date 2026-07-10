@@ -25,7 +25,7 @@
             font-family: 'Poppins', sans-serif;
             background: var(--bg);
             color: var(--text);
-            padding: 16px;
+            padding: 0;
         }
        .container { max-width: 1200px; margin: 0 auto; }
        .header {
@@ -38,6 +38,61 @@
         }
        .header h1 { font-size: 24px; font-weight: 600; }
        .header p { opacity: 0.9; font-size: 14px; margin-top: 4px; }
+
+       /* ---------- SIDEBAR LAYOUT ---------- */
+       #appContainer { display: flex; min-height: 100vh; }
+       .sidebar {
+            width: 240px;
+            flex-shrink: 0;
+            background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+            color: white;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+        }
+       .sidebar-brand { padding: 24px 20px 20px; }
+       .sidebar-brand h1 { font-size: 19px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+       .sidebar-brand p { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+       .sidebar-nav { flex: 1; padding: 8px 12px; display: flex; flex-direction: column; gap: 4px; }
+       .sidebar-link {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px; border-radius: 10px;
+            color: rgba(255,255,255,0.85); text-decoration: none;
+            font-size: 14px; font-weight: 500;
+            transition: 0.15s;
+        }
+       .sidebar-link i { width: 18px; text-align: center; }
+       .sidebar-link:hover { background: rgba(255,255,255,0.1); color: white; }
+       .sidebar-link.active { background: rgba(255,255,255,0.18); color: white; font-weight: 700; box-shadow: inset 3px 0 0 white; }
+       .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.15); font-size: 12px; opacity: 0.9; }
+       .main-content { margin-left: 240px; flex: 1; padding: 24px; min-width: 0; }
+       .mobile-topbar { display: none; }
+       .sidebar-overlay { display: none; }
+       .app-panel { display: none; }
+       .app-panel.active { display: block; }
+
+       @media (max-width: 900px) {
+            .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; }
+            .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.3); }
+            .main-content { margin-left: 0; padding: 16px; padding-top: 72px; }
+            .mobile-topbar {
+                display: flex; align-items: center; gap: 12px;
+                position: fixed; top: 0; left: 0; right: 0; height: 56px;
+                background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+                color: white; padding: 0 16px; z-index: 90;
+                font-weight: 700; font-size: 16px;
+            }
+            .hamburger-btn { background: none; border: none; color: white; font-size: 20px; cursor: pointer; padding: 6px; }
+            .sidebar-overlay {
+                display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+                z-index: 95; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+            }
+            .sidebar-overlay.visible { opacity: 1; pointer-events: auto; }
+        }
+       /* ---------- END SIDEBAR LAYOUT ---------- */
        .grid { display: grid; gap: 16px; margin-bottom: 20px; }
        .grid-4 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
@@ -332,23 +387,36 @@
         </div>
     </div>
 
-    <div class="container" id="appContainer" style="display:none">
-        <div class="header">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
-                <div>
-                    <h1><i class="fas fa-wallet"></i> Vyapar Khata</h1>
-                    <p>Smart expense tracking for business owners. Never miss a payment again.</p>
-                </div>
-                <div style="text-align:right">
-                    <div id="userEmailDisplay" style="font-size:13px;opacity:0.9"></div>
-                    <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);margin-top:6px" onclick="handleLogout()">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </button>
-                </div>
+    <div id="appContainer" style="display:none">
+        <nav class="sidebar" id="appSidebar">
+            <div class="sidebar-brand">
+                <h1><i class="fas fa-wallet"></i> Vyapar Khata</h1>
+                <p>Smart expense tracking</p>
             </div>
-        </div>
+            <div class="sidebar-nav">
+                <a href="#" class="sidebar-link active" data-panel="dashboard" onclick="switchPanel('dashboard');return false;"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="#" class="sidebar-link" data-panel="transactions" onclick="switchPanel('transactions');return false;"><i class="fas fa-receipt"></i> Transactions</a>
+                <a href="#" class="sidebar-link" data-panel="budgets" onclick="switchPanel('budgets');return false;"><i class="fas fa-sack-dollar"></i> Budgets</a>
+                <a href="#" class="sidebar-link" data-panel="dues" onclick="switchPanel('dues');return false;"><i class="fas fa-hand-holding-dollar"></i> Dues</a>
+                <a href="#" class="sidebar-link" data-panel="reports" onclick="switchPanel('reports');return false;"><i class="fas fa-chart-line"></i> Reports</a>
+            </div>
+            <div class="sidebar-footer">
+                <div id="userEmailDisplay"></div>
+                <button class="btn btn-sm" style="width:100%;margin-top:8px;background:rgba(255,255,255,0.15);" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </nav>
 
-        <div class="grid grid-4">
+        <div class="main-content">
+            <div class="mobile-topbar">
+                <button class="hamburger-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+                <span id="mobilePanelTitle">Dashboard</span>
+            </div>
+            <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+            <div class="app-panel active" id="panel-dashboard">
+<div class="grid grid-4">
             <div class="card">
                 <i class="fas fa-arrow-down card-icon success-text"></i>
                 <div class="card-title">This Month Income</div>
@@ -402,9 +470,11 @@
             <h3 style="margin-bottom:14px"><i class="fas fa-lightbulb" style="color:#f59e0b"></i> Insights</h3>
             <div id="insightsList"></div>
         </div>
+            </div>
 
-        <div class="grid grid-2">
-            <div class="card">
+            <div class="app-panel" id="panel-transactions">
+                <div class="grid grid-2">
+<div class="card">
                 <h3 style="margin-bottom:16px">Add Transaction</h3>
                 <select id="type">
                     <option value="expense">Expense</option>
@@ -516,8 +586,36 @@
                     <i class="fas fa-plus"></i> Add Transaction
                 </button>
             </div>
+                </div>
 
-            <div class="card">
+<div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h3>Recent Transactions</h3>
+                <button class="btn btn-sm btn-danger" onclick="setupAutoBackup()">
+                    <i class="fas fa-cloud"></i> Auto Backup
+                </button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+                <input type="text" id="filterSearch" placeholder="Search by note, category..." style="flex:2;min-width:160px;margin-bottom:0" oninput="renderTransactionList()">
+                <select id="filterType" style="flex:1;min-width:110px;margin-bottom:0" onchange="renderTransactionList()">
+                    <option value="">All Types</option>
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                </select>
+                <select id="filterCategory" style="flex:1;min-width:140px;margin-bottom:0" onchange="renderTransactionList()">
+                    <option value="">All Categories</option>
+                </select>
+                <input type="date" id="filterFrom" style="flex:1;min-width:120px;margin-bottom:0" onchange="renderTransactionList()">
+                <input type="date" id="filterTo" style="flex:1;min-width:120px;margin-bottom:0" onchange="renderTransactionList()">
+                <button class="btn btn-sm" style="margin-bottom:0" onclick="clearFilters()"><i class="fas fa-xmark"></i> Clear</button>
+            </div>
+            <div class="expense-list" id="transactionList"></div>
+        </div>
+            </div>
+
+            <div class="app-panel" id="panel-budgets">
+                <div class="grid grid-2">
+<div class="card">
                 <h3 style="margin-bottom:16px">Set Budget Limits</h3>
                 <select id="budgetCategory">
                     <optgroup label="🌱 Raw Materials">
@@ -605,9 +703,11 @@
                 </button>
                 <div id="budgetList" style="margin-top:16px"></div>
             </div>
-        </div>
+                </div>
+            </div>
 
-        <div class="section-title"><i class="fas fa-receipt"></i> Dues & Payment Timing Manager</div>
+            <div class="app-panel" id="panel-dues">
+<div class="section-title"><i class="fas fa-receipt"></i> Dues & Payment Timing Manager</div>
         <div class="grid grid-2">
             <div class="card">
                 <h3 style="margin-bottom:16px">Add a Due (Payable / Receivable)</h3>
@@ -675,8 +775,10 @@
                 </table>
             </div>
         </div>
+            </div>
 
-        <div class="card">
+            <div class="app-panel" id="panel-reports">
+<div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
                 <h3>Reports & Analytics</h3>
 
@@ -732,29 +834,7 @@
             <p style="font-size:12px;color:#64748b;margin-bottom:10px">Darker shade = higher spend that day. Helps you spot your heavy-spend days/patterns.</p>
             <div id="calendarGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
         </div>
-
-        <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-                <h3>Recent Transactions</h3>
-                <button class="btn btn-sm btn-danger" onclick="setupAutoBackup()">
-                    <i class="fas fa-cloud"></i> Auto Backup
-                </button>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-                <input type="text" id="filterSearch" placeholder="Search by note, category..." style="flex:2;min-width:160px;margin-bottom:0" oninput="renderTransactionList()">
-                <select id="filterType" style="flex:1;min-width:110px;margin-bottom:0" onchange="renderTransactionList()">
-                    <option value="">All Types</option>
-                    <option value="income">Income</option>
-                    <option value="expense">Expense</option>
-                </select>
-                <select id="filterCategory" style="flex:1;min-width:140px;margin-bottom:0" onchange="renderTransactionList()">
-                    <option value="">All Categories</option>
-                </select>
-                <input type="date" id="filterFrom" style="flex:1;min-width:120px;margin-bottom:0" onchange="renderTransactionList()">
-                <input type="date" id="filterTo" style="flex:1;min-width:120px;margin-bottom:0" onchange="renderTransactionList()">
-                <button class="btn btn-sm" style="margin-bottom:0" onclick="clearFilters()"><i class="fas fa-xmark"></i> Clear</button>
-            </div>
-            <div class="expense-list" id="transactionList"></div>
         </div>
     </div>
 
@@ -806,6 +886,43 @@
         function toLocalYM(d) {
             return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
         }
+
+        // ---------- SIDEBAR NAVIGATION ----------
+        const PANEL_TITLES = { dashboard: 'Dashboard', transactions: 'Transactions', budgets: 'Budgets', dues: 'Dues', reports: 'Reports' };
+
+        window.switchPanel = function(name) {
+            document.querySelectorAll('.app-panel').forEach(p => p.classList.remove('active'));
+            const target = document.getElementById('panel-' + name);
+            if (target) target.classList.add('active');
+
+            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('active', l.getAttribute('data-panel') === name));
+
+            const mobileTitle = document.getElementById('mobilePanelTitle');
+            if (mobileTitle) mobileTitle.textContent = PANEL_TITLES[name] || name;
+
+            // Chart.js canvases created while their panel was display:none end up with 0
+            // width/height and never redraw on their own once the panel becomes visible —
+            // so force a resize/rebuild whenever the Reports panel is opened.
+            if (name === 'reports') {
+                if (typeof updateChart === 'function') updateChart();
+                if (typeof updateCategoryBreakdown === 'function') updateCategoryBreakdown();
+                if (typeof updateComparisonTable === 'function') updateComparisonTable();
+            }
+
+            // Close the mobile drawer after navigating, if it was open.
+            const sidebar = document.getElementById('appSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('visible');
+        }
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('appSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('visible');
+        }
+        // ---------- END SIDEBAR NAVIGATION ----------
 
         function initAppDataListeners() {
             // Set today as default date
@@ -988,7 +1105,7 @@
             const appContainer = document.getElementById('appContainer');
             if (user) {
                 overlay.style.display = 'none';
-                appContainer.style.display = 'block';
+                appContainer.style.display = 'flex';
                 document.getElementById('userEmailDisplay').textContent = user.displayName ? `${user.displayName} (${user.email})` : user.email;
                 if (!listenersInitialized) {
                     listenersInitialized = true;
