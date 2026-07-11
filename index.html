@@ -844,7 +844,7 @@
     <!-- Firebase -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, push, onValue, remove, set, get, update } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getDatabase, ref, push, onValue, remove, set, get, update, runTransaction } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
         import {
             getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
             GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail,
@@ -1266,8 +1266,12 @@
                     icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444'
                 }).then(r => {
                     if (!r.isConfirmed) return;
-                    const updatedHidden = [...new Set([...hiddenDefaults, ...namesToHide])];
-                    const ops = [set(uref('settings/hiddenDefaults'), updatedHidden)];
+                    const ops = [
+                        runTransaction(uref('settings/hiddenDefaults'), current => {
+                            const list = current || [];
+                            return [...new Set([...list, ...namesToHide])];
+                        })
+                    ];
                     customInGroup.forEach(c => ops.push(update(uref(`customCategories/${c.id}`), { group: '' })));
                     Promise.all(ops).catch(err => Swal.fire('Failed', `Could not delete group: ${err.message}`, 'error'));
                 });
@@ -1295,8 +1299,16 @@
                 text: 'This only removes it from your category list — any past transactions or budgets using it are untouched, and you can bring it back anytime with "Restore Suggested Categories".',
                 icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444'
             }).then(r => {
-                if (!r.isConfirmed || hiddenDefaults.includes(name)) return;
-                set(uref('settings/hiddenDefaults'), [...hiddenDefaults, name]).catch(err => {
+                if (!r.isConfirmed) return;
+                // Transaction (not read-then-set): Firebase re-runs this with whatever the
+                // CURRENT server value is if another device/tab writes to the same path in
+                // between — so two people hiding different categories at the same moment
+                // both land correctly instead of one overwriting the other.
+                runTransaction(uref('settings/hiddenDefaults'), current => {
+                    const list = current || [];
+                    if (list.includes(name)) return list;
+                    return [...list, name];
+                }).catch(err => {
                     Swal.fire('Failed', `Could not remove category: ${err.message}`, 'error');
                 });
             });
