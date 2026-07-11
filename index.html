@@ -158,6 +158,23 @@
             border-bottom: 1px solid var(--border);
         }
        .expense-item:last-child { border-bottom: none; }
+       /* ---------- CATEGORY MANAGER ---------- */
+       .cat-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+       .cat-chip {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 20px; padding: 7px 8px 7px 14px;
+            font-size: 13px; font-weight: 500;
+        }
+       .cat-chip.is-custom { border-color: #c7d2fe; background: #eef2ff; }
+       .cat-chip button {
+            background: rgba(0,0,0,0.06); border: none; color: #64748b;
+            width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+            font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center;
+        }
+       .cat-chip button:hover { background: var(--danger); color: white; }
+       .cat-group-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; margin: 16px 0 8px; }
+       .cat-group-label:first-child { margin-top: 0; }
        .badge {
             padding: 4px 10px;
             border-radius: 20px;
@@ -398,6 +415,7 @@
                 <a href="#" class="sidebar-link" data-panel="transactions" onclick="switchPanel('transactions');return false;"><i class="fas fa-receipt"></i> Transactions</a>
                 <a href="#" class="sidebar-link" data-panel="budgets" onclick="switchPanel('budgets');return false;"><i class="fas fa-sack-dollar"></i> Budgets</a>
                 <a href="#" class="sidebar-link" data-panel="dues" onclick="switchPanel('dues');return false;"><i class="fas fa-hand-holding-dollar"></i> Dues</a>
+                <a href="#" class="sidebar-link" data-panel="categories" onclick="switchPanel('categories');return false;"><i class="fas fa-tags"></i> Categories</a>
                 <a href="#" class="sidebar-link" data-panel="reports" onclick="switchPanel('reports');return false;"><i class="fas fa-chart-line"></i> Reports</a>
             </div>
             <div class="sidebar-footer">
@@ -483,90 +501,6 @@
                 <input type="number" id="amount" placeholder="Amount ₹" />
                 <select id="category" onchange="handleCategorySelectChange()">
                     <option value="">Select Category</option>
-                    <option value="__add_new__" style="color:#6366f1;font-weight:700;">➕ Add New Category...</option>
-                    <optgroup label="💰 Income" id="incomeOptgroup">
-                        <option value="Sales">Sales</option>
-                        <option value="Investment Sale">Investment Sale</option>
-                    </optgroup>
-                    <optgroup label="🌱 Raw Materials">
-                        <option value="Raw Material - Cocopeat">Raw Material - Cocopeat</option>
-                        <option value="Raw Materials - Vermicompost">Raw Materials - Vermicompost</option>
-                        <option value="Raw Materials - Seeds">Raw Materials - Seeds</option>
-                        <option value="Raw Materials - Hydrogen Peroxide">Raw Materials - Hydrogen Peroxide</option>
-                        <option value="Raw Materials - Neem Oil">Raw Materials - Neem Oil</option>
-                        <option value="Raw Materials - Transportation Expense">Raw Materials - Transportation Expense</option>
-                    </optgroup>
-                    <optgroup label="👤 Salary & Labour">
-                        <option value="Salary">Salary</option>
-                    </optgroup>
-                    <optgroup label="🏠 Rent & Premises">
-                        <option value="Rent">Rent</option>
-                        <option value="Deposit Against Premises">Deposit Against Premises</option>
-                        <option value="Brokerage to Real Estate guy">Brokerage to Real Estate guy</option>
-                    </optgroup>
-                    <optgroup label="⚡ Utilities">
-                        <option value="Electricity">Electricity</option>
-                        <option value="Drinking Water">Drinking Water</option>
-                        <option value="Internet Renewal Expense">Internet Renewal Expense</option>
-                        <option value="Mobile Alert Charges">Mobile Alert Charges</option>
-                        <option value="Garbage Management Expense">Garbage Management Expense</option>
-                    </optgroup>
-                    <optgroup label="🧹 Maintenance & Hygiene">
-                        <option value="Maintainance - AC Expense">Maintainance - AC Expense</option>
-                        <option value="Maintainance - Dehumidifier Expense">Maintainance - Dehumidifier Expense</option>
-                        <option value="Hygiene Materials">Hygiene Materials</option>
-                        <option value="Miscellaneous - Garbage Bags">Miscellaneous - Garbage Bags</option>
-                    </optgroup>
-                    <optgroup label="🔧 Equipment & Machinery">
-                        <option value="Production Equipment & Machines">Production Equipment & Machines</option>
-                        <option value="Equipment - Dehumidifier">Equipment - Dehumidifier</option>
-                        <option value="Equipment - Production Racks">Equipment - Production Racks</option>
-                        <option value="Equipment - Grow Lights">Equipment - Grow Lights</option>
-                        <option value="Equipment - Grow Trays">Equipment - Grow Trays</option>
-                        <option value="Equipments - Rack Fans">Equipments - Rack Fans</option>
-                        <option value="Equipment - Weighing machine">Equipment - Weighing machine</option>
-                        <option value="Equipment - Office - Laptop/PC">Equipment - Office - Laptop/PC</option>
-                        <option value="Equipment - Office - Printer">Equipment - Office - Printer</option>
-                        <option value="Equipment - Water Circulation system">Equipment - Water Circulation system</option>
-                        <option value="Office Furniture">Office Furniture</option>
-                    </optgroup>
-                    <optgroup label="📦 Packaging, Travel & Delivery">
-                        <option value="Packaging Expense">Packaging Expense</option>
-                        <option value="Travel Conveyance">Travel Conveyance</option>
-                        <option value="Delivery Expense - Tiffinwala">Delivery Expense - Tiffinwala</option>
-                    </optgroup>
-                    <optgroup label="📣 Marketing & Vendor Payments">
-                        <option value="Marketing - Event Stall expense">Marketing - Event Stall expense</option>
-                        <option value="Vendor Payments - Edible Flower">Vendor Payments - Edible Flower</option>
-                        <option value="Stationary/Printing Expense">Stationary/Printing Expense</option>
-                    </optgroup>
-                    <optgroup label="💻 Subscriptions & Software">
-                        <option value="Subscription - Software Payments">Subscription - Software Payments</option>
-                    </optgroup>
-                    <optgroup label="🏦 Banking, Tax & Cash">
-                        <option value="Petty Cash Withdrawal">Petty Cash Withdrawal</option>
-                        <option value="IMPS Charges">IMPS Charges</option>
-                        <option value="Loan EMI">Loan EMI</option>
-                        <option value="GST/Tax">GST/Tax</option>
-                    </optgroup>
-                    <optgroup label="🏗️ Farm Civil / Setup Work">
-                        <option value="Farm Civil - Panelling">Farm Civil - Panelling</option>
-                        <option value="Farm Civil - Electrical Raw Materials">Farm Civil - Electrical Raw Materials</option>
-                        <option value="Farm Civil - Electrical Labour">Farm Civil - Electrical Labour</option>
-                        <option value="Farm Civil - Plumbing">Farm Civil - Plumbing</option>
-                        <option value="Farm Civil - False Ceiling">Farm Civil - False Ceiling</option>
-                        <option value="Farm Civil - Painting">Farm Civil - Painting</option>
-                        <option value="Farm Civil - Miscellaneous">Farm Civil - Miscellaneous</option>
-                        <option value="Farm Civil - 3 Phase Expenses">Farm Civil - 3 Phase Expenses</option>
-                        <option value="Farm Civil - AC Setup Charges">Farm Civil - AC Setup Charges</option>
-                    </optgroup>
-                    <optgroup label="🙋 Personal & Internal Transfers">
-                        <option value="Personal Expense">Personal Expense</option>
-                        <option value="Transfer from Company">Transfer from Company</option>
-                        <option value="Miscellaneous - Others">Miscellaneous - Others</option>
-                    </optgroup>
-                    <optgroup label="✨ Custom Expense Categories" id="customCategoryGroup"></optgroup>
-                    <option value="Other">Other</option>
                 </select>
                 <div id="newCategoryRow" style="display:none;">
                     <input type="text" id="newCategoryName" placeholder="New category name (e.g. Compost Turning Service)" style="margin-bottom:8px;">
@@ -618,84 +552,7 @@
 <div class="card">
                 <h3 style="margin-bottom:16px">Set Budget Limits</h3>
                 <select id="budgetCategory">
-                    <optgroup label="🌱 Raw Materials">
-                        <option value="Raw Material - Cocopeat">Raw Material - Cocopeat</option>
-                        <option value="Raw Materials - Vermicompost">Raw Materials - Vermicompost</option>
-                        <option value="Raw Materials - Seeds">Raw Materials - Seeds</option>
-                        <option value="Raw Materials - Hydrogen Peroxide">Raw Materials - Hydrogen Peroxide</option>
-                        <option value="Raw Materials - Neem Oil">Raw Materials - Neem Oil</option>
-                        <option value="Raw Materials - Transportation Expense">Raw Materials - Transportation Expense</option>
-                    </optgroup>
-                    <optgroup label="👤 Salary & Labour">
-                        <option value="Salary">Salary</option>
-                    </optgroup>
-                    <optgroup label="🏠 Rent & Premises">
-                        <option value="Rent">Rent</option>
-                        <option value="Deposit Against Premises">Deposit Against Premises</option>
-                        <option value="Brokerage to Real Estate guy">Brokerage to Real Estate guy</option>
-                    </optgroup>
-                    <optgroup label="⚡ Utilities">
-                        <option value="Electricity">Electricity</option>
-                        <option value="Drinking Water">Drinking Water</option>
-                        <option value="Internet Renewal Expense">Internet Renewal Expense</option>
-                        <option value="Mobile Alert Charges">Mobile Alert Charges</option>
-                        <option value="Garbage Management Expense">Garbage Management Expense</option>
-                    </optgroup>
-                    <optgroup label="🧹 Maintenance & Hygiene">
-                        <option value="Maintainance - AC Expense">Maintainance - AC Expense</option>
-                        <option value="Maintainance - Dehumidifier Expense">Maintainance - Dehumidifier Expense</option>
-                        <option value="Hygiene Materials">Hygiene Materials</option>
-                        <option value="Miscellaneous - Garbage Bags">Miscellaneous - Garbage Bags</option>
-                    </optgroup>
-                    <optgroup label="🔧 Equipment & Machinery">
-                        <option value="Production Equipment & Machines">Production Equipment & Machines</option>
-                        <option value="Equipment - Dehumidifier">Equipment - Dehumidifier</option>
-                        <option value="Equipment - Production Racks">Equipment - Production Racks</option>
-                        <option value="Equipment - Grow Lights">Equipment - Grow Lights</option>
-                        <option value="Equipment - Grow Trays">Equipment - Grow Trays</option>
-                        <option value="Equipments - Rack Fans">Equipments - Rack Fans</option>
-                        <option value="Equipment - Weighing machine">Equipment - Weighing machine</option>
-                        <option value="Equipment - Office - Laptop/PC">Equipment - Office - Laptop/PC</option>
-                        <option value="Equipment - Office - Printer">Equipment - Office - Printer</option>
-                        <option value="Equipment - Water Circulation system">Equipment - Water Circulation system</option>
-                        <option value="Office Furniture">Office Furniture</option>
-                    </optgroup>
-                    <optgroup label="📦 Packaging, Travel & Delivery">
-                        <option value="Packaging Expense">Packaging Expense</option>
-                        <option value="Travel Conveyance">Travel Conveyance</option>
-                        <option value="Delivery Expense - Tiffinwala">Delivery Expense - Tiffinwala</option>
-                    </optgroup>
-                    <optgroup label="📣 Marketing & Vendor Payments">
-                        <option value="Marketing - Event Stall expense">Marketing - Event Stall expense</option>
-                        <option value="Vendor Payments - Edible Flower">Vendor Payments - Edible Flower</option>
-                        <option value="Stationary/Printing Expense">Stationary/Printing Expense</option>
-                    </optgroup>
-                    <optgroup label="💻 Subscriptions & Software">
-                        <option value="Subscription - Software Payments">Subscription - Software Payments</option>
-                    </optgroup>
-                    <optgroup label="🏦 Banking, Tax & Cash">
-                        <option value="Petty Cash Withdrawal">Petty Cash Withdrawal</option>
-                        <option value="IMPS Charges">IMPS Charges</option>
-                        <option value="Loan EMI">Loan EMI</option>
-                        <option value="GST/Tax">GST/Tax</option>
-                    </optgroup>
-                    <optgroup label="🏗️ Farm Civil / Setup Work">
-                        <option value="Farm Civil - Panelling">Farm Civil - Panelling</option>
-                        <option value="Farm Civil - Electrical Raw Materials">Farm Civil - Electrical Raw Materials</option>
-                        <option value="Farm Civil - Electrical Labour">Farm Civil - Electrical Labour</option>
-                        <option value="Farm Civil - Plumbing">Farm Civil - Plumbing</option>
-                        <option value="Farm Civil - False Ceiling">Farm Civil - False Ceiling</option>
-                        <option value="Farm Civil - Painting">Farm Civil - Painting</option>
-                        <option value="Farm Civil - Miscellaneous">Farm Civil - Miscellaneous</option>
-                        <option value="Farm Civil - 3 Phase Expenses">Farm Civil - 3 Phase Expenses</option>
-                        <option value="Farm Civil - AC Setup Charges">Farm Civil - AC Setup Charges</option>
-                    </optgroup>
-                    <optgroup label="🙋 Personal & Internal Transfers">
-                        <option value="Personal Expense">Personal Expense</option>
-                        <option value="Miscellaneous - Others">Miscellaneous - Others</option>
-                    </optgroup>
-                    <optgroup label="✨ Custom Expense Categories" id="customBudgetCategoryGroup"></optgroup>
-                    <option value="Other">Other</option>
+                    <option value="">Select Category</option>
                 </select>
                 <input type="number" id="budgetAmount" placeholder="Monthly Budget ₹" />
                 <button class="btn btn-success" onclick="setBudget()" style="width:100%">
@@ -775,6 +632,35 @@
                 </table>
             </div>
         </div>
+            </div>
+
+            <div class="app-panel" id="panel-categories">
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+                        <div>
+                            <h3>Manage Categories</h3>
+                            <p style="font-size:13px;color:#64748b;margin-top:4px">
+                                Every account starts with a suggested set of categories — add your own,
+                                and remove any you don't need. This only changes what's offered when adding
+                                a transaction; it never touches transactions or budgets you've already saved.
+                            </p>
+                        </div>
+                        <button class="btn btn-sm" onclick="window.openAddCategoryModal()"><i class="fas fa-plus"></i> Add Category</button>
+                    </div>
+
+                    <div class="cat-group-label">💰 Income Categories</div>
+                    <div class="cat-chip-list" id="catManagerIncome"></div>
+
+                    <div class="cat-group-label">💸 Expense Categories</div>
+                    <div class="cat-chip-list" id="catManagerExpense"></div>
+
+                    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                        <p style="font-size:12px;color:#94a3b8;margin:0">Removed a suggested category by mistake?</p>
+                        <button class="btn btn-sm" style="background:#e2e8f0;color:#334155" onclick="window.restoreDefaultCategories()">
+                            <i class="fas fa-rotate-left"></i> Restore Suggested Categories
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="app-panel" id="panel-reports">
@@ -893,12 +779,14 @@
             budgets = {};
             dues = [];
             customCategories = [];
+            hiddenDefaults = [];
         }
 
         let transactions = [];
         let budgets = {};
         let dues = [];
         let customCategories = [];
+        let hiddenDefaults = []; // names of suggested/default categories this user has removed
         let businessRoi = 24; // default assumed annual return on working capital %
         let currentReport = 'month';
         let chart;
@@ -918,7 +806,7 @@
         }
 
         // ---------- SIDEBAR NAVIGATION ----------
-        const PANEL_TITLES = { dashboard: 'Dashboard', transactions: 'Transactions', budgets: 'Budgets', dues: 'Dues', reports: 'Reports' };
+        const PANEL_TITLES = { dashboard: 'Dashboard', transactions: 'Transactions', budgets: 'Budgets', dues: 'Dues', categories: 'Categories', reports: 'Reports' };
 
         window.switchPanel = function(name) {
             document.querySelectorAll('.app-panel').forEach(p => p.classList.remove('active'));
@@ -993,52 +881,236 @@
                 document.getElementById('roiCurrent').textContent = `Current setting: ${businessRoi}% annual return assumed on working capital.`;
             }));
 
-            // Custom categories the user has added — injected into both the transaction
-            // and budget dropdowns under "✨ Custom Categories" so they behave exactly like
-            // the built-in ones (usable everywhere: transactions, budgets, filters, charts).
+            // Custom categories the user has added — merged into the category dropdowns
+            // and the Manage Categories panel alongside the (filterable) default set.
             dataUnsubscribes.push(onValue(uref('customCategories'), (snapshot) => {
                 customCategories = [];
                 snapshot.forEach(child => {
                     customCategories.push({ id: child.key, ...child.val() });
                 });
-                renderCustomCategoryOptions();
+                renderCategoryDropdowns();
+            }));
+
+            // Default/suggested categories a user has chosen to remove. Stored as a plain
+            // array of category name strings — hiding, not deleting, so nothing about past
+            // transactions or budgets ever changes, and it's fully reversible from the
+            // Manage Categories panel.
+            dataUnsubscribes.push(onValue(uref('settings/hiddenDefaults'), (snapshot) => {
+                hiddenDefaults = snapshot.val() || [];
+                renderCategoryDropdowns();
             }));
         }
 
-        function renderCustomCategoryOptions() {
-            const incomeGroup = document.getElementById('incomeOptgroup');
-            const expenseGroupTx = document.getElementById('customCategoryGroup');
-            const expenseGroupBudget = document.getElementById('customBudgetCategoryGroup');
+        // ---------- CATEGORY SYSTEM ----------
+        // Every category shown anywhere in the app (transaction dropdown, budget dropdown,
+        // the Manage Categories panel) is now built dynamically from two sources:
+        //   1. DEFAULT_CATEGORY_GROUPS below — a suggested starting set, filterable per user
+        //      via hiddenDefaults (an array of names that user chose to remove).
+        //   2. customCategories — categories the user typed in themselves.
+        // Nothing here is hardcoded into the HTML anymore, so any user — not just this farm
+        // business — can end up with a category list that actually matches their business.
 
-            // Income and Expense custom categories are handled separately: income ones get
-            // inserted directly into the real "💰 Income" group (alongside Sales / Investment
-            // Sale) so they look and behave identically to the built-in options — no more
-            // ugly "(Income)" suffix needed since the grouping itself now makes it clear.
-            const incomeCats = customCategories.filter(c => c.type === 'income').sort((a, b) => a.name.localeCompare(b.name));
-            const expenseCats = customCategories.filter(c => c.type !== 'income').sort((a, b) => a.name.localeCompare(b.name));
+        const DEFAULT_CATEGORY_GROUPS = [
+            { label: '💰 Income', type: 'income', items: ['Sales', 'Investment Sale'] },
+            { label: '🌱 Raw Materials', type: 'expense', items: [
+                'Raw Material - Cocopeat', 'Raw Materials - Vermicompost', 'Raw Materials - Seeds',
+                'Raw Materials - Hydrogen Peroxide', 'Raw Materials - Neem Oil', 'Raw Materials - Transportation Expense'
+            ]},
+            { label: '👤 Salary & Labour', type: 'expense', items: ['Salary'] },
+            { label: '🏠 Rent & Premises', type: 'expense', items: ['Rent', 'Deposit Against Premises', 'Brokerage to Real Estate guy'] },
+            { label: '⚡ Utilities', type: 'expense', items: [
+                'Electricity', 'Drinking Water', 'Internet Renewal Expense', 'Mobile Alert Charges', 'Garbage Management Expense'
+            ]},
+            { label: '🧹 Maintenance & Hygiene', type: 'expense', items: [
+                'Maintainance - AC Expense', 'Maintainance - Dehumidifier Expense', 'Hygiene Materials', 'Miscellaneous - Garbage Bags'
+            ]},
+            { label: '🔧 Equipment & Machinery', type: 'expense', items: [
+                'Production Equipment & Machines', 'Equipment - Dehumidifier', 'Equipment - Production Racks',
+                'Equipment - Grow Lights', 'Equipment - Grow Trays', 'Equipments - Rack Fans', 'Equipment - Weighing machine',
+                'Equipment - Office - Laptop/PC', 'Equipment - Office - Printer', 'Equipment - Water Circulation system', 'Office Furniture'
+            ]},
+            { label: '📦 Packaging, Travel & Delivery', type: 'expense', items: [
+                'Packaging Expense', 'Travel Conveyance', 'Delivery Expense - Tiffinwala'
+            ]},
+            { label: '📣 Marketing & Vendor Payments', type: 'expense', items: [
+                'Marketing - Event Stall expense', 'Vendor Payments - Edible Flower', 'Stationary/Printing Expense'
+            ]},
+            { label: '💻 Subscriptions & Software', type: 'expense', items: ['Subscription - Software Payments'] },
+            { label: '🏦 Banking, Tax & Cash', type: 'expense', items: ['Petty Cash Withdrawal', 'IMPS Charges', 'Loan EMI', 'GST/Tax'] },
+            { label: '🏗️ Farm Civil / Setup Work', type: 'expense', items: [
+                'Farm Civil - Panelling', 'Farm Civil - Electrical Raw Materials', 'Farm Civil - Electrical Labour',
+                'Farm Civil - Plumbing', 'Farm Civil - False Ceiling', 'Farm Civil - Painting',
+                'Farm Civil - Miscellaneous', 'Farm Civil - 3 Phase Expenses', 'Farm Civil - AC Setup Charges'
+            ]},
+            { label: '🙋 Personal & Internal Transfers', type: 'expense',
+              items: ['Personal Expense', 'Transfer from Company', 'Miscellaneous - Others'],
+              noBudgetItems: ['Transfer from Company'] } // internal transfers aren't a real spend category, so exclude only this one from the Budget dropdown
+        ];
 
-            if (incomeGroup) {
-                // Clear out previously-injected custom options first so re-renders (every
-                // time Firebase pushes an update) don't duplicate entries — but leave the
-                // two static built-in options (Sales, Investment Sale) untouched.
-                incomeGroup.querySelectorAll('.custom-added-opt').forEach(o => o.remove());
-                incomeCats.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.name;
-                    opt.textContent = c.name;
-                    opt.className = 'custom-added-opt';
-                    incomeGroup.appendChild(opt);
+        function isDefaultHidden(name) {
+            return hiddenDefaults.includes(name);
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function getAllCategoryNames() {
+            const defaults = DEFAULT_CATEGORY_GROUPS.flatMap(g => g.items).filter(n => !isDefaultHidden(n));
+            const customs = customCategories.map(c => c.name);
+            return [...defaults, ...customs];
+        }
+
+        function buildCategorySelectHTML(forBudget) {
+            let html = '<option value="">Select Category</option>';
+            if (!forBudget) {
+                html += '<option value="__add_new__" style="color:#6366f1;font-weight:700;">➕ Add New Category...</option>';
+            }
+            DEFAULT_CATEGORY_GROUPS.forEach(group => {
+                if (forBudget && group.type === 'income') return; // budgets don't apply to income
+                const visibleItems = group.items.filter(name => {
+                    if (isDefaultHidden(name)) return false;
+                    if (forBudget && group.noBudgetItems && group.noBudgetItems.includes(name)) return false;
+                    return true;
                 });
+                if (visibleItems.length === 0) return;
+                html += `<optgroup label="${escapeHtml(group.label)}">` +
+                    visibleItems.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('') +
+                    `</optgroup>`;
+            });
+
+            const customIncome = customCategories.filter(c => c.type === 'income').sort((a, b) => a.name.localeCompare(b.name));
+            const customExpense = customCategories.filter(c => c.type !== 'income').sort((a, b) => a.name.localeCompare(b.name));
+            if (!forBudget && customIncome.length) {
+                html += `<optgroup label="✨ Custom Income Categories">` +
+                    customIncome.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('') +
+                    `</optgroup>`;
+            }
+            if (customExpense.length) {
+                html += `<optgroup label="✨ Custom Expense Categories">` +
+                    customExpense.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('') +
+                    `</optgroup>`;
             }
 
-            // Expense-type custom categories only — budgets don't apply to income, so the
-            // Set Budget dropdown should never offer an income category as an option.
-            const expenseOptionsHtml = expenseCats
-                .map(c => `<option value="${c.name.replace(/"/g,'&quot;')}">${c.name}</option>`)
-                .join('');
-            if (expenseGroupTx) expenseGroupTx.innerHTML = expenseOptionsHtml;
-            if (expenseGroupBudget) expenseGroupBudget.innerHTML = expenseOptionsHtml;
+            html += '<option value="Other">Other</option>';
+            return html;
         }
+
+        function renderCategoryDropdowns() {
+            const catSel = document.getElementById('category');
+            const budgetSel = document.getElementById('budgetCategory');
+            if (catSel) {
+                const prev = catSel.value;
+                catSel.innerHTML = buildCategorySelectHTML(false);
+                if (prev && Array.from(catSel.options).some(o => o.value === prev)) catSel.value = prev;
+            }
+            if (budgetSel) {
+                const prev = budgetSel.value;
+                budgetSel.innerHTML = buildCategorySelectHTML(true);
+                if (prev && Array.from(budgetSel.options).some(o => o.value === prev)) budgetSel.value = prev;
+            }
+            renderCategoryManager();
+        }
+
+        function renderCategoryManager() {
+            const incomeBox = document.getElementById('catManagerIncome');
+            const expenseBox = document.getElementById('catManagerExpense');
+            if (!incomeBox || !expenseBox) return; // panel not on this page yet
+
+            let incomeHtml = '';
+            let expenseHtml = '';
+
+            DEFAULT_CATEGORY_GROUPS.forEach(group => {
+                group.items.forEach(name => {
+                    if (isDefaultHidden(name)) return;
+                    const chip = `<div class="cat-chip"><span>${escapeHtml(name)}</span><button title="Remove" onclick="window.deleteDefaultCategory('${name.replace(/'/g, "\\'")}')">&times;</button></div>`;
+                    if (group.type === 'income') incomeHtml += chip; else expenseHtml += chip;
+                });
+            });
+
+            customCategories.forEach(c => {
+                const chip = `<div class="cat-chip is-custom"><span>${escapeHtml(c.name)}</span><button title="Remove" onclick="window.deleteCustomCategory('${c.id}')">&times;</button></div>`;
+                if (c.type === 'income') incomeHtml += chip; else expenseHtml += chip;
+            });
+
+            incomeBox.innerHTML = incomeHtml || '<p style="font-size:13px;color:#94a3b8">No income categories yet.</p>';
+            expenseBox.innerHTML = expenseHtml || '<p style="font-size:13px;color:#94a3b8">No expense categories yet.</p>';
+        }
+
+        window.deleteDefaultCategory = function(name) {
+            Swal.fire({
+                title: `Remove "${name}"?`,
+                text: 'This only removes it from your category list — any past transactions or budgets using it are untouched, and you can bring it back anytime with "Restore Suggested Categories".',
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444'
+            }).then(r => {
+                if (!r.isConfirmed || hiddenDefaults.includes(name)) return;
+                set(uref('settings/hiddenDefaults'), [...hiddenDefaults, name]).catch(err => {
+                    Swal.fire('Failed', `Could not remove category: ${err.message}`, 'error');
+                });
+            });
+        }
+
+        window.restoreDefaultCategories = function() {
+            if (hiddenDefaults.length === 0) {
+                Swal.fire('Nothing to restore', 'You haven\'t removed any suggested categories.', 'info');
+                return;
+            }
+            Swal.fire({
+                title: 'Restore all suggested categories?',
+                text: 'Brings back every suggested category you previously removed.',
+                icon: 'question', showCancelButton: true, confirmButtonColor: '#6366f1'
+            }).then(r => {
+                if (!r.isConfirmed) return;
+                set(uref('settings/hiddenDefaults'), [])
+                    .then(() => Swal.fire('Restored', 'All suggested categories are back.', 'success'))
+                    .catch(err => Swal.fire('Failed', `Could not restore: ${err.message}`, 'error'));
+            });
+        }
+
+        window.deleteCustomCategory = function(id) {
+            const cat = customCategories.find(c => c.id === id);
+            Swal.fire({
+                title: `Delete "${cat ? cat.name : 'this category'}"?`,
+                text: 'Any past transactions or budgets using this category name are unaffected.',
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444'
+            }).then(r => {
+                if (!r.isConfirmed) return;
+                remove(uref(`customCategories/${id}`)).catch(err => {
+                    Swal.fire('Delete Failed', `Could not delete category: ${err.message}`, 'error');
+                });
+            });
+        }
+
+        window.openAddCategoryModal = function() {
+            Swal.fire({
+                title: 'Add Category',
+                html: `
+                    <input id="modalCatName" class="swal2-input" placeholder="Category name">
+                    <select id="modalCatType" class="swal2-input">
+                        <option value="expense">💸 Expense</option>
+                        <option value="income">💰 Income</option>
+                    </select>
+                `,
+                confirmButtonText: 'Add',
+                showCancelButton: true,
+                preConfirm: () => {
+                    const name = document.getElementById('modalCatName').value.trim();
+                    const type = document.getElementById('modalCatType').value;
+                    if (!name) { Swal.showValidationMessage('Please type a category name'); return false; }
+                    if (getAllCategoryNames().map(n => n.toLowerCase()).includes(name.toLowerCase())) {
+                        Swal.showValidationMessage(`"${name}" already exists`);
+                        return false;
+                    }
+                    return { name, type };
+                }
+            }).then(result => {
+                if (!result.isConfirmed) return;
+                push(uref('customCategories'), { name: result.value.name, type: result.value.type, addedAt: Date.now() })
+                    .then(() => Swal.fire('Added!', `"${result.value.name}" added.`, 'success'))
+                    .catch(err => Swal.fire('Save Failed', `Could not add category: ${err.message}`, 'error'));
+            });
+        }
+        // ---------- END CATEGORY SYSTEM ----------
 
         // ---------- AUTHENTICATION ----------
 
