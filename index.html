@@ -865,6 +865,36 @@
         const googleProvider = new GoogleAuthProvider();
         let listenersInitialized = false;
 
+        // ---------- PER-USER DATA SCOPING ----------
+        // Every user's data now lives under users/{uid}/... in the database instead of
+        // at the root. uref() builds that scoped path so every onValue/push/set/remove
+        // call below automatically stays inside the logged-in user's own sandbox.
+        // currentUid + dataUnsubscribes track whose listeners are currently attached so
+        // that if one account logs out and a different account logs in in the same tab,
+        // we detach the old user's listeners before attaching the new user's — otherwise
+        // the new user would briefly see (or overwrite) the previous user's data.
+        let currentUid = null;
+        let dataUnsubscribes = [];
+
+        function uref(path) {
+            if (!auth.currentUser) {
+                throw new Error('uref() called with no signed-in user — this should never happen since all data calls are gated behind onAuthStateChanged.');
+            }
+            return ref(db, `users/${auth.currentUser.uid}/${path}`);
+        }
+
+        function detachDataListeners() {
+            dataUnsubscribes.forEach(unsub => { try { unsub(); } catch (e) {} });
+            dataUnsubscribes = [];
+            listenersInitialized = false;
+            // Clear local state so a previous account's data can't linger on screen
+            // for even a frame after logout or account switch.
+            transactions = [];
+            budgets = {};
+            dues = [];
+            customCategories = [];
+        }
+
         let transactions = [];
         let budgets = {};
         let dues = [];
@@ -929,23 +959,25 @@
             document.getElementById('date').valueAsDate = new Date();
             document.getElementById('dueBillDate').valueAsDate = new Date();
 
-            // Load data
-            onValue(ref(db, 'transactions'), (snapshot) => {
+            // Load data — every ref below is scoped to users/{uid}/... via uref(), and
+            // each listener's unsubscribe function is stashed in dataUnsubscribes so it
+            // can be torn down cleanly on logout or account switch.
+            dataUnsubscribes.push(onValue(uref('transactions'), (snapshot) => {
                 transactions = [];
                 snapshot.forEach(child => {
                     transactions.push({ id: child.key,...child.val() });
                 });
                 transactions.sort((a,b) => new Date(b.date) - new Date(a.date));
                 updateUI();
-            });
+            }));
 
-            onValue(ref(db, 'budgets'), (snapshot) => {
+            dataUnsubscribes.push(onValue(uref('budgets'), (snapshot) => {
                 budgets = snapshot.val() || {};
                 renderBudgets();
                 checkBudgetAlerts();
-            });
+            }));
 
-            onValue(ref(db, 'dues'), (snapshot) => {
+            dataUnsubscribes.push(onValue(uref('dues'), (snapshot) => {
                 dues = [];
                 snapshot.forEach(child => {
                     dues.push({ id: child.key, ...child.val() });
@@ -954,23 +986,23 @@
                 renderDueHistory();
                 updateDuesSummary();
                 renderPartyReport();
-            });
+            }));
 
-            onValue(ref(db, 'settings/businessRoi'), (snapshot) => {
+            dataUnsubscribes.push(onValue(uref('settings/businessRoi'), (snapshot) => {
                 businessRoi = snapshot.val() || 24;
                 document.getElementById('roiCurrent').textContent = `Current setting: ${businessRoi}% annual return assumed on working capital.`;
-            });
+            }));
 
             // Custom categories the user has added — injected into both the transaction
             // and budget dropdowns under "✨ Custom Categories" so they behave exactly like
             // the built-in ones (usable everywhere: transactions, budgets, filters, charts).
-            onValue(ref(db, 'customCategories'), (snapshot) => {
+            dataUnsubscribes.push(onValue(uref('customCategories'), (snapshot) => {
                 customCategories = [];
                 snapshot.forEach(child => {
                     customCategories.push({ id: child.key, ...child.val() });
                 });
                 renderCustomCategoryOptions();
-            });
+            }));
         }
 
         function renderCustomCategoryOptions() {
@@ -1107,13 +1139,23 @@
                 overlay.style.display = 'none';
                 appContainer.style.display = 'flex';
                 document.getElementById('userEmailDisplay').textContent = user.displayName ? `${user.displayName} (${user.email})` : user.email;
-                if (!listenersInitialized) {
+                // Only (re)attach listeners if this is actually a different account than
+                // whoever's listeners are currently attached. Without this uid check, a
+                // logout followed by a different account logging in in the same tab would
+                // leave listenersInitialized=true and never switch the data over — or
+                // worse, briefly mix two accounts' data during the swap.
+                if (currentUid !== user.uid) {
+                    detachDataListeners();
+                    currentUid = user.uid;
                     listenersInitialized = true;
                     initAppDataListeners();
                 }
             } else {
                 overlay.style.display = 'flex';
                 appContainer.style.display = 'none';
+                currentUid = null;
+                detachDataListeners();
+                updateUI();
             }
         });
 
@@ -1169,7 +1211,8 @@
             }
 
             const type = newCategoryType; // the explicit toggle in this box — never silently inherited from elsewhere
-            push(ref(db, 'customCategories'), { name, type, addedAt: Date.now() });
+            push(uref('customCategories'), { name, type, addedAt: Date.now() })
+                .catch(err => Swal.fire('Save Failed', `Could not add category: ${err.message}`, 'error'));
 
             // Firebase's onValue listener re-renders the dropdown options asynchronously —
             // wait a tick for that, then select the newly added category automatically,
@@ -1206,14 +1249,16 @@
                 return;
             }
 
-            push(ref(db, 'transactions'), {
+            push(uref('transactions'), {
                 type, amount, category, note, date,
                 timestamp: Date.now()
+            }).then(() => {
+                document.getElementById('amount').value = '';
+                document.getElementById('note').value = '';
+                Swal.fire('Success', 'Transaction added!', 'success');
+            }).catch(err => {
+                Swal.fire('Save Failed', `Could not add this transaction: ${err.message}`, 'error');
             });
-
-            document.getElementById('amount').value = '';
-            document.getElementById('note').value = '';
-            Swal.fire('Success', 'Transaction added!', 'success');
         }
 
         window.setBudget = function() {
@@ -1221,9 +1266,12 @@
             const amount = parseFloat(document.getElementById('budgetAmount').value);
             if (!amount) return;
 
-            set(ref(db, `budgets/${category}`), amount);
-            document.getElementById('budgetAmount').value = '';
-            Swal.fire('Success', `Budget set for ${category}`, 'success');
+            set(uref(`budgets/${category}`), amount).then(() => {
+                document.getElementById('budgetAmount').value = '';
+                Swal.fire('Success', `Budget set for ${category}`, 'success');
+            }).catch(err => {
+                Swal.fire('Save Failed', `Could not set this budget: ${err.message}`, 'error');
+            });
         }
 
         function renderBudgets() {
@@ -1264,29 +1312,34 @@
                 return;
             }
 
-            push(ref(db, 'dues'), {
+            push(uref('dues'), {
                 direction, party, amount, billDate, dueDate,
                 discountPercent, discountCutoff, penaltyPercent, note,
                 status: 'pending',
                 timestamp: Date.now()
+            }).then(() => {
+                document.getElementById('dueParty').value = '';
+                document.getElementById('dueAmount').value = '';
+                document.getElementById('dueDate').value = '';
+                document.getElementById('dueDiscountPercent').value = '';
+                document.getElementById('dueDiscountCutoff').value = '';
+                document.getElementById('duePenaltyPercent').value = '';
+                document.getElementById('dueNote').value = '';
+                Swal.fire('Success', 'Due added!', 'success');
+            }).catch(err => {
+                Swal.fire('Save Failed', `Could not add this due: ${err.message}`, 'error');
             });
-
-            document.getElementById('dueParty').value = '';
-            document.getElementById('dueAmount').value = '';
-            document.getElementById('dueDate').value = '';
-            document.getElementById('dueDiscountPercent').value = '';
-            document.getElementById('dueDiscountCutoff').value = '';
-            document.getElementById('duePenaltyPercent').value = '';
-            document.getElementById('dueNote').value = '';
-            Swal.fire('Success', 'Due added!', 'success');
         }
 
         window.saveRoi = function() {
             const val = parseFloat(document.getElementById('businessRoi').value);
             if (!val) { Swal.fire('Error', 'Enter a valid % number', 'error'); return; }
-            set(ref(db, 'settings/businessRoi'), val);
-            document.getElementById('businessRoi').value = '';
-            Swal.fire('Saved', `Business ROI set to ${val}% annual`, 'success');
+            set(uref('settings/businessRoi'), val).then(() => {
+                document.getElementById('businessRoi').value = '';
+                Swal.fire('Saved', `Business ROI set to ${val}% annual`, 'success');
+            }).catch(err => {
+                Swal.fire('Save Failed', `Could not save ROI setting: ${err.message}`, 'error');
+            });
         }
 
         function daysBetween(d1, d2) {
@@ -1340,7 +1393,12 @@
             Swal.fire({
                 title: 'Delete this due?', icon: 'warning',
                 showCancelButton: true, confirmButtonColor: '#ef4444'
-            }).then(r => { if (r.isConfirmed) remove(ref(db, `dues/${id}`)); });
+            }).then(r => {
+                if (!r.isConfirmed) return;
+                remove(uref(`dues/${id}`)).catch(err => {
+                    Swal.fire('Delete Failed', `Could not delete this due: ${err.message}`, 'error');
+                });
+            });
         }
 
         // Core calculation: was holding/timing the payment a GOOD or BAD decision, and by how much %?
@@ -1422,16 +1480,18 @@
                     confirmButtonText: 'Save & Record Transaction'
                 }).then(r2 => {
                     if (!r2.isConfirmed) return;
-                    set(ref(db, `dues/${id}`), {
-                        ...due, status: 'paid', paidDate, outcome
-                    });
-                    push(ref(db, 'transactions'), {
-                        type: due.direction === 'payable' ? 'expense' : 'income',
-                        amount: actualCash,
-                        category: due.direction === 'payable' ? 'Dues Payment' : 'Dues Collection',
-                        note: `${due.party}${due.note ? ' - ' + due.note : ''}`,
-                        date: paidDate,
-                        timestamp: Date.now()
+                    Promise.all([
+                        set(uref(`dues/${id}`), { ...due, status: 'paid', paidDate, outcome }),
+                        push(uref('transactions'), {
+                            type: due.direction === 'payable' ? 'expense' : 'income',
+                            amount: actualCash,
+                            category: due.direction === 'payable' ? 'Dues Payment' : 'Dues Collection',
+                            note: `${due.party}${due.note ? ' - ' + due.note : ''}`,
+                            date: paidDate,
+                            timestamp: Date.now()
+                        })
+                    ]).catch(err => {
+                        Swal.fire('Save Failed', `Could not record this settlement: ${err.message}`, 'error');
                     });
                 });
             });
@@ -1629,7 +1689,10 @@
                 title: 'Delete?', text: "This cannot be undone", icon: 'warning',
                 showCancelButton: true, confirmButtonColor: '#ef4444'
             }).then((result) => {
-                if (result.isConfirmed) remove(ref(db, `transactions/${id}`));
+                if (!result.isConfirmed) return;
+                remove(uref(`transactions/${id}`)).catch(err => {
+                    Swal.fire('Delete Failed', `Could not delete this transaction: ${err.message}`, 'error');
+                });
             });
         }
 
@@ -1669,8 +1732,9 @@
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    set(ref(db, `transactions/${id}`), { ...result.value, timestamp: t.timestamp || Date.now() });
-                    Swal.fire('Updated!', 'Transaction saved.', 'success');
+                    set(uref(`transactions/${id}`), { ...result.value, timestamp: t.timestamp || Date.now() })
+                        .then(() => Swal.fire('Updated!', 'Transaction saved.', 'success'))
+                        .catch(err => Swal.fire('Save Failed', `Could not save changes: ${err.message}`, 'error'));
                 }
             });
         }
@@ -2069,16 +2133,21 @@
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
+                let data;
                 try {
-                    const data = JSON.parse(e.target.result);
-                    if (data.transactions) set(ref(db, 'transactions'), data.transactions);
-                    if (data.budgets) set(ref(db, 'budgets'), data.budgets);
-                    if (data.dues) set(ref(db, 'dues'), data.dues);
-                    if (data.businessRoi) set(ref(db, 'settings/businessRoi'), data.businessRoi);
-                    Swal.fire('Success', 'Data imported!', 'success');
+                    data = JSON.parse(e.target.result);
                 } catch (err) {
                     Swal.fire('Error', 'Invalid file', 'error');
+                    return;
                 }
+                const writes = [];
+                if (data.transactions) writes.push(set(uref('transactions'), data.transactions));
+                if (data.budgets) writes.push(set(uref('budgets'), data.budgets));
+                if (data.dues) writes.push(set(uref('dues'), data.dues));
+                if (data.businessRoi) writes.push(set(uref('settings/businessRoi'), data.businessRoi));
+                Promise.all(writes)
+                    .then(() => Swal.fire('Success', 'Data imported!', 'success'))
+                    .catch(err => Swal.fire('Import Failed', `Could not import data: ${err.message}`, 'error'));
             };
             reader.readAsText(file);
         }
@@ -2103,10 +2172,10 @@
                     }
                 }
             }).then((result) => {
-                if (result.isConfirmed) {
-                    set(ref(db, 'settings/autoBackup'), result.value);
-                    Swal.fire('Enabled!', 'Auto backup will run as scheduled via Firebase Functions', 'success');
-                }
+                if (!result.isConfirmed) return;
+                set(uref('settings/autoBackup'), result.value)
+                    .then(() => Swal.fire('Enabled!', 'Auto backup will run as scheduled via Firebase Functions', 'success'))
+                    .catch(err => Swal.fire('Save Failed', `Could not save auto backup setting: ${err.message}`, 'error'));
             });
         }
     </script>
