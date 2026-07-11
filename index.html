@@ -6,6 +6,7 @@
     <title>Vyapar Khata - Smart Expense Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -414,6 +415,7 @@
                 <a href="#" class="sidebar-link active" data-panel="dashboard" onclick="switchPanel('dashboard');return false;"><i class="fas fa-chart-pie"></i> Dashboard</a>
                 <a href="#" class="sidebar-link" data-panel="transactions" onclick="switchPanel('transactions');return false;"><i class="fas fa-receipt"></i> Transactions</a>
                 <a href="#" class="sidebar-link" data-panel="budgets" onclick="switchPanel('budgets');return false;"><i class="fas fa-sack-dollar"></i> Budgets</a>
+                <a href="#" class="sidebar-link" data-panel="recurring" onclick="switchPanel('recurring');return false;"><i class="fas fa-repeat"></i> Recurring</a>
                 <a href="#" class="sidebar-link" data-panel="dues" onclick="switchPanel('dues');return false;"><i class="fas fa-hand-holding-dollar"></i> Dues</a>
                 <a href="#" class="sidebar-link" data-panel="categories" onclick="switchPanel('categories');return false;"><i class="fas fa-tags"></i> Categories</a>
                 <a href="#" class="sidebar-link" data-panel="reports" onclick="switchPanel('reports');return false;"><i class="fas fa-chart-line"></i> Reports</a>
@@ -498,7 +500,13 @@
                     <option value="expense">Expense</option>
                     <option value="income">Income</option>
                 </select>
-                <input type="number" id="amount" placeholder="Amount ₹" />
+                <div style="display:flex;gap:8px;align-items:flex-start;">
+                    <input type="number" id="amount" placeholder="Amount ₹" style="flex:1" oninput="updateGstPreview()" />
+                    <button type="button" id="voiceEntryBtn" class="btn btn-sm" style="flex:0 0 auto;padding:12px 14px;margin-bottom:12px;" onclick="window.startVoiceEntry()" title="Speak amount, category and note">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                </div>
+                <p id="voiceEntryStatus" style="display:none;font-size:12px;color:#6366f1;margin:-8px 0 10px;"></p>
                 <select id="category" onchange="handleCategorySelectChange()">
                     <option value="">Select Category</option>
                 </select>
@@ -516,6 +524,39 @@
                 </div>
                 <input type="text" id="note" placeholder="Note: Invoice no, party name" />
                 <input type="date" id="date" />
+
+                <div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#334155;cursor:pointer;margin:0;">
+                        <input type="checkbox" id="gstApplicable" style="width:auto;margin:0;" onchange="window.toggleGstFields()"> GST Applicable
+                    </label>
+                    <div id="gstFieldsRow" style="display:none;margin-top:10px;">
+                        <div style="display:flex;gap:8px;">
+                            <select id="gstType" style="flex:1;margin-bottom:0">
+                                <option value="output">Output GST (charged on Sales)</option>
+                                <option value="input">Input GST (paid on Purchase)</option>
+                            </select>
+                            <select id="gstRate" style="flex:1;margin-bottom:0" onchange="updateGstPreview()">
+                                <option value="5">5%</option>
+                                <option value="12">12%</option>
+                                <option value="18" selected>18%</option>
+                                <option value="28">28%</option>
+                            </select>
+                        </div>
+                        <p id="gstBreakdownPreview" style="font-size:12px;color:#64748b;margin:8px 0 0;">Enter an amount to see the tax breakdown.</p>
+                    </div>
+                </div>
+
+                <div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;">
+                    <label style="font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:8px;">
+                        <i class="fas fa-camera"></i> Attach Receipt (optional)
+                    </label>
+                    <input type="file" id="receiptFile" accept="image/*" capture="environment" style="margin-bottom:0" onchange="window.handleReceiptSelect(event)">
+                    <div id="receiptPreviewRow" style="display:none;margin-top:10px;align-items:center;gap:10px;">
+                        <img id="receiptPreviewImg" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
+                        <button type="button" class="btn btn-sm" style="background:#e2e8f0;color:#334155" onclick="window.clearReceiptSelect()"><i class="fas fa-xmark"></i> Remove</button>
+                    </div>
+                </div>
+
                 <button class="btn" onclick="addTransaction()" style="width:100%">
                     <i class="fas fa-plus"></i> Add Transaction
                 </button>
@@ -560,6 +601,67 @@
                 </button>
                 <div id="budgetList" style="margin-top:16px"></div>
             </div>
+                </div>
+
+                <div class="card" style="margin-top:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+                        <div>
+                            <h3>🎉 Festival & Seasonal Budgets</h3>
+                            <p style="font-size:13px;color:#64748b;margin-top:4px">
+                                Diwali, Holi, wedding season, harvest season — set a budget for a date range
+                                instead of a flat calendar month, and track actual spend/income across exactly that window.
+                            </p>
+                        </div>
+                        <button class="btn btn-sm" onclick="window.openAddSeasonalBudgetModal()"><i class="fas fa-plus"></i> Add Seasonal Budget</button>
+                    </div>
+                    <div id="seasonalBudgetList" style="margin-top:12px;display:flex;flex-direction:column;gap:12px;"></div>
+                </div>
+            </div>
+
+            <div class="app-panel" id="panel-recurring">
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+                        <div>
+                            <h3>Recurring Transactions</h3>
+                            <p style="font-size:13px;color:#64748b;margin-top:4px">
+                                Rent, salaries, EMIs, subscriptions — set them up once and they're logged automatically
+                                every month on the day you choose, instead of typing the same entry in by hand.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-2" style="margin-top:12px;">
+                        <div>
+                            <select id="recurType">
+                                <option value="expense">Expense</option>
+                                <option value="income">Income</option>
+                            </select>
+                            <input type="number" id="recurAmount" placeholder="Amount ₹" />
+                            <select id="recurCategory">
+                                <option value="">Select Category</option>
+                            </select>
+                            <input type="text" id="recurNote" placeholder="Note (e.g. Shop Rent - July)" />
+                            <label style="font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px;">Runs on day of month</label>
+                            <select id="recurDay">
+                                <option value="1" selected>1</option><option value="2">2</option><option value="3">3</option>
+                                <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                                <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                                <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                                <option value="13">13</option><option value="14">14</option><option value="15">15</option>
+                                <option value="16">16</option><option value="17">17</option><option value="18">18</option>
+                                <option value="19">19</option><option value="20">20</option><option value="21">21</option>
+                                <option value="22">22</option><option value="23">23</option><option value="24">24</option>
+                                <option value="25">25</option><option value="26">26</option><option value="27">27</option>
+                                <option value="28">28</option>
+                            </select>
+                            <button class="btn" onclick="window.addRecurringRule()" style="width:100%">
+                                <i class="fas fa-plus"></i> Add Recurring Transaction
+                            </button>
+                        </div>
+                        <div>
+                            <div id="recurringList"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -672,12 +774,23 @@
                     <div class="tab active" onclick="changeReport('week')">Weekly</div>
                     <div class="tab" onclick="changeReport('month')">Monthly</div>
                     <div class="tab" onclick="changeReport('year')">Yearly</div>
+                    <div class="tab" onclick="window.openShareThisMonth()"><i class="fas fa-share-nodes"></i> Share This Month</div>
                     <div class="tab" onclick="exportData()">Export Backup</div>
                     <div class="tab" onclick="document.getElementById('importFile').click()">Import</div>
                     <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
                 </div>
             </div>
             <canvas id="expenseChart" height="100"></canvas>
+        </div>
+
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:10px">
+                <h3>🧾 GST Summary <span style="font-size:12px;color:#64748b;font-weight:400">This month</span></h3>
+            </div>
+            <p style="font-size:12px;color:#94a3b8;margin-bottom:14px">
+                Based on transactions tagged "GST Applicable" this month. This is a rough working figure for your own tracking, not a filing-ready statement — confirm with your CA before filing.
+            </p>
+            <div class="grid" id="gstSummaryGrid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;"></div>
         </div>
 
         <div class="grid grid-2">
@@ -780,6 +893,8 @@
             dues = [];
             customCategories = [];
             hiddenDefaults = [];
+            recurringRules = [];
+            seasonalBudgets = [];
         }
 
         let transactions = [];
@@ -787,6 +902,8 @@
         let dues = [];
         let customCategories = [];
         let hiddenDefaults = []; // names of suggested/default categories this user has removed
+        let recurringRules = [];
+        let seasonalBudgets = [];
         let businessRoi = 24; // default assumed annual return on working capital %
         let currentReport = 'month';
         let chart;
@@ -806,7 +923,7 @@
         }
 
         // ---------- SIDEBAR NAVIGATION ----------
-        const PANEL_TITLES = { dashboard: 'Dashboard', transactions: 'Transactions', budgets: 'Budgets', dues: 'Dues', categories: 'Categories', reports: 'Reports' };
+        const PANEL_TITLES = { dashboard: 'Dashboard', transactions: 'Transactions', budgets: 'Budgets', recurring: 'Recurring', dues: 'Dues', categories: 'Categories', reports: 'Reports' };
 
         window.switchPanel = function(name) {
             document.querySelectorAll('.app-panel').forEach(p => p.classList.remove('active'));
@@ -898,6 +1015,23 @@
             dataUnsubscribes.push(onValue(uref('settings/hiddenDefaults'), (snapshot) => {
                 hiddenDefaults = snapshot.val() || [];
                 renderCategoryDropdowns();
+            }));
+
+            dataUnsubscribes.push(onValue(uref('recurring'), (snapshot) => {
+                recurringRules = [];
+                snapshot.forEach(child => {
+                    recurringRules.push({ id: child.key, ...child.val() });
+                });
+                renderRecurringList();
+                runDueRecurringTransactions();
+            }));
+
+            dataUnsubscribes.push(onValue(uref('seasonalBudgets'), (snapshot) => {
+                seasonalBudgets = [];
+                snapshot.forEach(child => {
+                    seasonalBudgets.push({ id: child.key, ...child.val() });
+                });
+                renderSeasonalBudgetList();
             }));
         }
 
@@ -999,6 +1133,7 @@
         function renderCategoryDropdowns() {
             const catSel = document.getElementById('category');
             const budgetSel = document.getElementById('budgetCategory');
+            const recurSel = document.getElementById('recurCategory');
             if (catSel) {
                 const prev = catSel.value;
                 catSel.innerHTML = buildCategorySelectHTML(false);
@@ -1008,6 +1143,13 @@
                 const prev = budgetSel.value;
                 budgetSel.innerHTML = buildCategorySelectHTML(true);
                 if (prev && Array.from(budgetSel.options).some(o => o.value === prev)) budgetSel.value = prev;
+            }
+            if (recurSel) {
+                const prev = recurSel.value;
+                recurSel.innerHTML = buildCategorySelectHTML(false).replace(
+                    '<option value="__add_new__" style="color:#6366f1;font-weight:700;">➕ Add New Category...</option>', ''
+                );
+                if (prev && Array.from(recurSel.options).some(o => o.value === prev)) recurSel.value = prev;
             }
             renderCategoryManager();
         }
@@ -1111,6 +1253,212 @@
             });
         }
         // ---------- END CATEGORY SYSTEM ----------
+
+        // ---------- RECURRING TRANSACTIONS ----------
+        window.addRecurringRule = function() {
+            const type = document.getElementById('recurType').value;
+            const amount = parseFloat(document.getElementById('recurAmount').value);
+            const category = document.getElementById('recurCategory').value;
+            const note = document.getElementById('recurNote').value;
+            const dayOfMonth = parseInt(document.getElementById('recurDay').value);
+
+            if (!amount || !category) {
+                Swal.fire('Error', 'Please fill amount and category', 'error');
+                return;
+            }
+
+            push(uref('recurring'), {
+                type, amount, category, note, dayOfMonth,
+                active: true,
+                lastRunMonth: null, // set the first time this rule actually fires
+                createdAt: Date.now()
+            }).then(() => {
+                document.getElementById('recurAmount').value = '';
+                document.getElementById('recurNote').value = '';
+                Swal.fire('Added', 'Recurring transaction set up — it\'ll be logged automatically each month.', 'success');
+            }).catch(err => {
+                Swal.fire('Save Failed', `Could not add this recurring rule: ${err.message}`, 'error');
+            });
+        }
+
+        window.toggleRecurringRule = function(id) {
+            const rule = recurringRules.find(r => r.id === id);
+            if (!rule) return;
+            set(uref(`recurring/${id}/active`), !rule.active).catch(err => {
+                Swal.fire('Failed', `Could not update this rule: ${err.message}`, 'error');
+            });
+        }
+
+        window.deleteRecurringRule = function(id) {
+            Swal.fire({
+                title: 'Delete this recurring transaction?', icon: 'warning',
+                text: 'Transactions it already logged in the past stay untouched — this only stops future ones.',
+                showCancelButton: true, confirmButtonColor: '#ef4444'
+            }).then(r => {
+                if (!r.isConfirmed) return;
+                remove(uref(`recurring/${id}`)).catch(err => {
+                    Swal.fire('Delete Failed', `Could not delete this rule: ${err.message}`, 'error');
+                });
+            });
+        }
+
+        function renderRecurringList() {
+            const box = document.getElementById('recurringList');
+            if (!box) return;
+            if (recurringRules.length === 0) {
+                box.innerHTML = '<p style="font-size:13px;color:#94a3b8">No recurring transactions set up yet.</p>';
+                return;
+            }
+            box.innerHTML = recurringRules.map(r => `
+                <div class="expense-item">
+                    <div>
+                        <strong>${escapeHtml(r.category)}</strong>
+                        ${r.active === false ? '<span class="badge" style="background:#f1f5f9;color:#64748b;margin-left:6px;">Paused</span>' : ''}
+                        <br>
+                        <small style="color:#64748b">Day ${r.dayOfMonth} of every month ${r.note ? '| ' + escapeHtml(r.note) : ''}</small>
+                    </div>
+                    <div style="text-align:right">
+                        <div class="${r.type==='income'?'success-text':'danger-text'}" style="font-weight:600">
+                            ${r.type==='income'?'+':'-'}₹${r.amount.toLocaleString('en-IN')}
+                        </div>
+                        <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;">
+                            <button class="btn btn-sm" style="background:#e2e8f0;color:#334155" onclick="window.toggleRecurringRule('${r.id}')">
+                                <i class="fas fa-${r.active === false ? 'play' : 'pause'}"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="window.deleteRecurringRule('${r.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Runs once whenever the recurring rules list loads (login, or any change to the
+        // rules). For every active rule whose scheduled day has arrived this month and
+        // that hasn't already fired this month, logs a transaction and stamps the rule with
+        // this month so it doesn't fire twice. This is a client-side catch-up check rather
+        // than a server-side cron job — it only runs when someone actually opens the app, so
+        // if you skip logging in for a few days after the scheduled day, it still catches up
+        // correctly the next time you do open it, just a few days later than the exact date.
+        function runDueRecurringTransactions() {
+            const today = new Date();
+            const currentYM = toLocalYM(today);
+            const currentDay = today.getDate();
+
+            const due = recurringRules.filter(r =>
+                r.active !== false &&
+                r.lastRunMonth !== currentYM &&
+                currentDay >= r.dayOfMonth
+            );
+            if (due.length === 0) return;
+
+            const writes = due.map(r => {
+                const runDate = `${currentYM}-${String(r.dayOfMonth).padStart(2, '0')}`;
+                return push(uref('transactions'), {
+                    type: r.type, amount: r.amount, category: r.category,
+                    note: r.note ? `${r.note} (Recurring)` : 'Recurring transaction',
+                    date: runDate, timestamp: Date.now(), isRecurring: true
+                }).then(() => set(uref(`recurring/${r.id}/lastRunMonth`), currentYM));
+            });
+
+            Promise.all(writes).then(() => {
+                Swal.fire('Recurring Transactions Logged', `${due.length} recurring transaction${due.length > 1 ? 's' : ''} added for this month: ${due.map(r => r.category).join(', ')}.`, 'success');
+            }).catch(err => {
+                console.error('Recurring transaction auto-log failed:', err);
+            });
+        }
+        // ---------- END RECURRING TRANSACTIONS ----------
+
+        // ---------- FESTIVAL / SEASONAL BUDGETS ----------
+        window.openAddSeasonalBudgetModal = function() {
+            Swal.fire({
+                title: 'Add Seasonal Budget',
+                html: `
+                    <input id="seasonName" class="swal2-input" placeholder="Name (e.g. Diwali 2026, Wedding Season)">
+                    <input id="seasonStart" type="date" class="swal2-input" placeholder="Start date">
+                    <input id="seasonEnd" type="date" class="swal2-input" placeholder="End date">
+                    <input id="seasonBudget" type="number" class="swal2-input" placeholder="Budget amount ₹">
+                `,
+                confirmButtonText: 'Add',
+                showCancelButton: true,
+                preConfirm: () => {
+                    const name = document.getElementById('seasonName').value.trim();
+                    const startDate = document.getElementById('seasonStart').value;
+                    const endDate = document.getElementById('seasonEnd').value;
+                    const budgetAmount = parseFloat(document.getElementById('seasonBudget').value);
+                    if (!name || !startDate || !endDate || !budgetAmount) {
+                        Swal.showValidationMessage('Please fill in every field');
+                        return false;
+                    }
+                    if (endDate < startDate) {
+                        Swal.showValidationMessage('End date must be after start date');
+                        return false;
+                    }
+                    return { name, startDate, endDate, budgetAmount };
+                }
+            }).then(result => {
+                if (!result.isConfirmed) return;
+                push(uref('seasonalBudgets'), { ...result.value, createdAt: Date.now() })
+                    .then(() => Swal.fire('Added', `"${result.value.name}" budget created.`, 'success'))
+                    .catch(err => Swal.fire('Save Failed', `Could not add this seasonal budget: ${err.message}`, 'error'));
+            });
+        }
+
+        window.deleteSeasonalBudget = function(id) {
+            Swal.fire({
+                title: 'Delete this seasonal budget?', icon: 'warning',
+                showCancelButton: true, confirmButtonColor: '#ef4444'
+            }).then(r => {
+                if (!r.isConfirmed) return;
+                remove(uref(`seasonalBudgets/${id}`)).catch(err => {
+                    Swal.fire('Delete Failed', `Could not delete this budget: ${err.message}`, 'error');
+                });
+            });
+        }
+
+        function renderSeasonalBudgetList() {
+            const box = document.getElementById('seasonalBudgetList');
+            if (!box) return;
+            if (seasonalBudgets.length === 0) {
+                box.innerHTML = '<p style="font-size:13px;color:#94a3b8">No seasonal budgets yet — add one for an upcoming festival or busy season.</p>';
+                return;
+            }
+
+            box.innerHTML = seasonalBudgets.map(s => {
+                // Net spend within the date range: expenses count against the budget,
+                // income within the same window offsets it — useful for a festival stall
+                // or wedding-season catering job where both cost and revenue spike together.
+                const inRange = transactions.filter(t => t.date >= s.startDate && t.date <= s.endDate);
+                const spent = inRange.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+                const earned = inRange.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+                const pct = Math.min(100, Math.round((spent / s.budgetAmount) * 100));
+                const barColor = pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
+                const today = toLocalYMD(new Date());
+                const status = today < s.startDate ? 'Upcoming' : today > s.endDate ? 'Ended' : 'Active now';
+
+                return `
+                <div style="border:1px solid var(--border);border-radius:12px;padding:14px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                        <div>
+                            <strong>${escapeHtml(s.name)}</strong>
+                            <span class="badge" style="background:#f1f5f9;color:#64748b;margin-left:6px;">${status}</span>
+                            <br>
+                            <small style="color:#64748b">${s.startDate} → ${s.endDate}</small>
+                        </div>
+                        <button class="btn btn-sm btn-danger" onclick="window.deleteSeasonalBudget('${s.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div style="margin-top:10px;background:var(--bg);border-radius:8px;height:8px;overflow:hidden;">
+                        <div style="width:${pct}%;height:100%;background:${barColor};"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:13px;">
+                        <span class="danger-text">Spent: ₹${spent.toLocaleString('en-IN')} of ₹${s.budgetAmount.toLocaleString('en-IN')}</span>
+                        <span class="success-text">Earned: ₹${earned.toLocaleString('en-IN')}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        // ---------- END FESTIVAL / SEASONAL BUDGETS ----------
 
         // ---------- AUTHENTICATION ----------
 
@@ -1299,6 +1647,182 @@
             Swal.fire('Added!', `"${name}" added under ${type === 'income' ? '💰 Income' : '💸 Expense'} — it's now selected, and the Type dropdown has been set to match. Just fill in amount and date, then Add Transaction.`, 'success');
         }
 
+        // ---------- GST TAGGING ----------
+        window.toggleGstFields = function() {
+            const on = document.getElementById('gstApplicable').checked;
+            document.getElementById('gstFieldsRow').style.display = on ? 'block' : 'none';
+            updateGstPreview();
+        }
+
+        window.updateGstPreview = function() {
+            const preview = document.getElementById('gstBreakdownPreview');
+            if (!preview) return;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const rate = parseFloat(document.getElementById('gstRate').value);
+            if (!amount || amount <= 0) {
+                preview.textContent = 'Enter an amount to see the tax breakdown.';
+                return;
+            }
+            // Amount entered is treated as the GST-inclusive total (the number on the actual
+            // bill) — base value and tax are backed out from it, which is how most small
+            // businesses read their invoices.
+            const base = amount / (1 + rate / 100);
+            const gst = amount - base;
+            preview.textContent = `Base ₹${base.toFixed(2)} + GST ₹${gst.toFixed(2)} (${rate}%) = ₹${amount.toFixed(2)}`;
+        }
+
+        function computeGstFields() {
+            const applicable = document.getElementById('gstApplicable').checked;
+            if (!applicable) return { gstApplicable: false };
+            const amount = parseFloat(document.getElementById('amount').value) || 0;
+            const rate = parseFloat(document.getElementById('gstRate').value);
+            const gstType = document.getElementById('gstType').value;
+            const base = amount / (1 + rate / 100);
+            const gstAmount = amount - base;
+            return {
+                gstApplicable: true,
+                gstType,          // 'input' (GST you paid) or 'output' (GST you charged)
+                gstRate: rate,
+                gstBaseAmount: Math.round(base * 100) / 100,
+                gstAmount: Math.round(gstAmount * 100) / 100
+            };
+        }
+
+        function resetGstFields() {
+            document.getElementById('gstApplicable').checked = false;
+            document.getElementById('gstFieldsRow').style.display = 'none';
+            document.getElementById('gstRate').value = '18';
+            document.getElementById('gstType').value = 'output';
+        }
+        // ---------- END GST TAGGING ----------
+
+        // ---------- VOICE ENTRY ----------
+        // Uses the browser's built-in speech recognition (Web Speech API) — no external
+        // service, no cost, works in Chrome/Edge on both desktop and Android. Not supported
+        // in Safari/iOS or Firefox, so we detect and disable gracefully.
+        window.startVoiceEntry = function() {
+            const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const statusEl = document.getElementById('voiceEntryStatus');
+            if (!Recognition) {
+                Swal.fire('Not Supported', 'Voice entry works in Chrome and Edge (desktop or Android). It isn\'t available in this browser.', 'info');
+                return;
+            }
+            const recognition = new Recognition();
+            // en-IN understands Indian-accented English number/rupee phrasing well and also
+            // picks up a lot of mixed Hindi-English speech reasonably — a dedicated hi-IN
+            // mode is offered as a fallback if the first pass doesn't find an amount.
+            recognition.lang = 'en-IN';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            statusEl.style.display = 'block';
+            statusEl.textContent = '🎙️ Listening... say something like "500 rupees expense for diesel"';
+            document.getElementById('voiceEntryBtn').style.background = 'var(--danger)';
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                statusEl.textContent = `Heard: "${transcript}" — filling in what I could...`;
+                applyVoiceTranscript(transcript);
+            };
+            recognition.onerror = (event) => {
+                statusEl.textContent = `Couldn't catch that (${event.error}). Try again or type it in.`;
+            };
+            recognition.onend = () => {
+                document.getElementById('voiceEntryBtn').style.background = '';
+                setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+            };
+            recognition.start();
+        }
+
+        function applyVoiceTranscript(transcript) {
+            const text = transcript.toLowerCase();
+
+            // Amount: first number in the phrase, spoken as digits ("500") — spelled-out
+            // numbers ("five hundred") aren't parsed, since browser speech recognition
+            // already converts most spoken numbers to digits automatically.
+            const numMatch = text.match(/\d+(\.\d+)?/);
+            if (numMatch) {
+                document.getElementById('amount').value = numMatch[0];
+                updateGstPreview();
+            }
+
+            // Type: look for explicit income/expense words; default stays whatever the
+            // dropdown was already set to if neither word is heard.
+            if (/\bincome\b|\breceived\b|\bcredit\b/.test(text)) {
+                document.getElementById('type').value = 'income';
+            } else if (/\bexpense\b|\bspent\b|\bpaid\b|\bdebit\b/.test(text)) {
+                document.getElementById('type').value = 'expense';
+            }
+
+            // Category: match against every currently-available category name (default +
+            // custom) by simple substring containment — good enough for short spoken
+            // category names without needing a real NLP model.
+            const allNames = getAllCategoryNames();
+            const heard = allNames.find(name => text.includes(name.toLowerCase()));
+            if (heard) {
+                document.getElementById('category').value = heard;
+            }
+
+            // Whatever's left over after stripping the number and matched category becomes
+            // the note, so context like "for diesel" or "from Sharma ji" isn't lost even
+            // when it doesn't match a category exactly.
+            let note = transcript;
+            if (numMatch) note = note.replace(numMatch[0], '');
+            if (heard) note = note.replace(new RegExp(heard, 'i'), '');
+            note = note.replace(/\b(rupees?|rs\.?|income|expense|spent|paid|received|credit|debit)\b/gi, '').trim();
+            if (note) document.getElementById('note').value = note;
+        }
+        // ---------- END VOICE ENTRY ----------
+
+        // ---------- PHOTO RECEIPT ATTACH ----------
+        let pendingReceiptDataUrl = null;
+
+        window.handleReceiptSelect = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Compress client-side before it ever touches Firebase — a raw phone
+                    // photo can be 3-5MB, which blows past Realtime Database's per-value
+                    // practical limits and makes every transaction list load slowly. Resizing
+                    // to a 600px-wide JPEG keeps receipts legible while staying well under
+                    // ~100-150KB in nearly all cases.
+                    const canvas = document.createElement('canvas');
+                    const maxWidth = 600;
+                    const scale = Math.min(1, maxWidth / img.width);
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    pendingReceiptDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+
+                    document.getElementById('receiptPreviewImg').src = pendingReceiptDataUrl;
+                    document.getElementById('receiptPreviewRow').style.display = 'flex';
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        window.clearReceiptSelect = function() {
+            pendingReceiptDataUrl = null;
+            document.getElementById('receiptFile').value = '';
+            document.getElementById('receiptPreviewRow').style.display = 'none';
+        }
+
+        window.viewReceiptImage = function(dataUrl) {
+            Swal.fire({
+                imageUrl: dataUrl,
+                imageAlt: 'Receipt',
+                showConfirmButton: false,
+                showCloseButton: true,
+                width: 'min(90vw, 500px)'
+            });
+        }
+        // ---------- END PHOTO RECEIPT ATTACH ----------
+
         window.addTransaction = function() {
             const type = document.getElementById('type').value;
             const amount = parseFloat(document.getElementById('amount').value);
@@ -1321,12 +1845,18 @@
                 return;
             }
 
-            push(uref('transactions'), {
+            const record = {
                 type, amount, category, note, date,
-                timestamp: Date.now()
-            }).then(() => {
+                timestamp: Date.now(),
+                ...computeGstFields()
+            };
+            if (pendingReceiptDataUrl) record.receiptImage = pendingReceiptDataUrl;
+
+            push(uref('transactions'), record).then(() => {
                 document.getElementById('amount').value = '';
                 document.getElementById('note').value = '';
+                resetGstFields();
+                window.clearReceiptSelect();
                 Swal.fire('Success', 'Transaction added!', 'success');
             }).catch(err => {
                 Swal.fire('Save Failed', `Could not add this transaction: ${err.message}`, 'error');
@@ -1675,6 +2205,8 @@
             renderInsights();
             renderCalendarHeatmap();
             checkBudgetAlerts();
+            renderSeasonalBudgetList();
+            updateGstSummary();
         }
 
         function populateFilterCategories() {
@@ -1724,17 +2256,24 @@
 
             list.innerHTML = toShow.map(t => {
                 const isBroken = t.category === '__add_new__' || !t.category;
+                const gstBadge = t.gstApplicable
+                    ? `<span class="badge" style="background:#ede9fe;color:#5b21b6;margin-left:6px;">GST ${t.gstRate}% ${t.gstType === 'input' ? 'ITC' : 'Out'}</span>`
+                    : '';
+                const receiptThumb = t.receiptImage
+                    ? `<img src="${t.receiptImage}" onclick="window.viewReceiptImage('${t.receiptImage}')" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;margin-right:6px;" title="View receipt">`
+                    : '';
                 return `
                 <div class="expense-item" style="${isBroken ? 'background:#fef2f2;border-radius:8px;padding-left:8px;padding-right:8px;' : ''}">
                     <div>
-                        <strong>${isBroken ? '⚠️ (unnamed category — click Edit to fix)' : t.category}</strong><br>
+                        <strong>${isBroken ? '⚠️ (unnamed category — click Edit to fix)' : t.category}</strong>${gstBadge}<br>
                         <small style="color:#64748b">${t.date} ${t.note? '| '+t.note : ''}</small>
                     </div>
                     <div style="text-align:right">
                         <div class="${t.type==='income'?'success-text':'danger-text'}" style="font-weight:600">
                             ${t.type==='income'?'+':'-'}₹${t.amount.toLocaleString('en-IN')}
                         </div>
-                        <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;">
+                        <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end;align-items:center;">
+                            ${receiptThumb}
                             <button class="btn btn-sm" style="background:#e0e7ff;color:#4338ca;" onclick="editTx('${t.id}')">
                                 <i class="fas fa-pen"></i>
                             </button>
@@ -1804,7 +2343,10 @@
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    set(uref(`transactions/${id}`), { ...result.value, timestamp: t.timestamp || Date.now() })
+                    // Merge over the original record rather than replacing it outright, so
+                    // fields this quick-edit form doesn't touch — GST tagging, the receipt
+                    // photo — survive instead of silently disappearing on every edit.
+                    set(uref(`transactions/${id}`), { ...t, ...result.value, timestamp: t.timestamp || Date.now() })
                         .then(() => Swal.fire('Updated!', 'Transaction saved.', 'success'))
                         .catch(err => Swal.fire('Save Failed', `Could not save changes: ${err.message}`, 'error'));
                 }
@@ -2016,6 +2558,142 @@
         }
 
         // ---------- END CATEGORY BREAKDOWN & COMPARISON MODULE ----------
+
+        // ---------- GST SUMMARY ----------
+        function updateGstSummary() {
+            const grid = document.getElementById('gstSummaryGrid');
+            if (!grid) return;
+
+            const thisMonth = toLocalYM(new Date());
+            const gstTx = transactions.filter(t => t.gstApplicable && t.date.startsWith(thisMonth));
+
+            const outputGst = gstTx.filter(t => t.gstType === 'output').reduce((s, t) => s + (t.gstAmount || 0), 0);
+            const inputGst = gstTx.filter(t => t.gstType === 'input').reduce((s, t) => s + (t.gstAmount || 0), 0);
+            const netPayable = outputGst - inputGst;
+
+            const cards = [
+                { label: 'Output GST (on Sales)', value: outputGst, color: 'var(--danger)' },
+                { label: 'Input GST (ITC on Purchases)', value: inputGst, color: 'var(--success)' },
+                { label: netPayable >= 0 ? 'Net GST Payable' : 'Net GST Credit', value: Math.abs(netPayable), color: netPayable >= 0 ? '#5b21b6' : 'var(--success)' }
+            ];
+
+            grid.innerHTML = cards.map(c => `
+                <div style="background:var(--bg);border-radius:10px;padding:14px;">
+                    <div style="font-size:12px;color:#64748b;margin-bottom:4px;">${c.label}</div>
+                    <div style="font-size:20px;font-weight:700;color:${c.color}">₹${c.value.toLocaleString('en-IN', {maximumFractionDigits: 0})}</div>
+                </div>
+            `).join('') + (gstTx.length === 0
+                ? '<p style="grid-column:1/-1;font-size:13px;color:#94a3b8;margin:4px 0 0">No GST-tagged transactions this month yet — tick "GST Applicable" while adding a transaction to include it here.</p>'
+                : '');
+        }
+        // ---------- END GST SUMMARY ----------
+
+        // ---------- SHARE THIS MONTH ----------
+        function buildMonthSummary() {
+            const thisMonth = toLocalYM(new Date());
+            const monthTx = transactions.filter(t => t.date.startsWith(thisMonth));
+            const income = monthTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+            const expense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+            const balance = income - expense;
+
+            const byCategory = {};
+            monthTx.filter(t => t.type === 'expense').forEach(t => {
+                byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
+            });
+            const topCategories = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+            const monthLabel = new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+            return { monthLabel, income, expense, balance, topCategories, txCount: monthTx.length };
+        }
+
+        window.openShareThisMonth = function() {
+            const s = buildMonthSummary();
+            Swal.fire({
+                title: `Share ${s.monthLabel} Summary`,
+                html: `
+                    <div style="text-align:left;font-size:13px;background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:12px;">
+                        <div>Income: <strong class="success-text">₹${s.income.toLocaleString('en-IN')}</strong></div>
+                        <div>Expense: <strong class="danger-text">₹${s.expense.toLocaleString('en-IN')}</strong></div>
+                        <div>Net: <strong>₹${s.balance.toLocaleString('en-IN')}</strong></div>
+                        <div style="color:#94a3b8;margin-top:4px;">${s.txCount} transactions this month</div>
+                    </div>
+                `,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '<i class="fab fa-whatsapp"></i> WhatsApp',
+                denyButtonText: '<i class="fas fa-file-pdf"></i> Download PDF',
+                cancelButtonText: 'Close',
+                confirmButtonColor: '#25D366',
+                denyButtonColor: '#6366f1'
+            }).then(result => {
+                if (result.isConfirmed) shareViaWhatsApp(s);
+                else if (result.isDenied) downloadMonthPdf(s);
+            });
+        }
+
+        function shareViaWhatsApp(s) {
+            let text = `*Vyapar Khata — ${s.monthLabel}*\n\n`;
+            text += `Income: ₹${s.income.toLocaleString('en-IN')}\n`;
+            text += `Expense: ₹${s.expense.toLocaleString('en-IN')}\n`;
+            text += `Net: ₹${s.balance.toLocaleString('en-IN')}\n\n`;
+            if (s.topCategories.length) {
+                text += `Top Expense Categories:\n`;
+                s.topCategories.forEach(([cat, amt]) => {
+                    text += `• ${cat}: ₹${amt.toLocaleString('en-IN')}\n`;
+                });
+            }
+            const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        }
+
+        function downloadMonthPdf(s) {
+            if (!window.jspdf) {
+                Swal.fire('Error', 'PDF library did not load — check your internet connection and try again.', 'error');
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(18);
+            doc.text('Vyapar Khata', 14, 20);
+            doc.setFontSize(12);
+            doc.setTextColor(100);
+            doc.text(`Monthly Summary — ${s.monthLabel}`, 14, 28);
+
+            doc.setDrawColor(220);
+            doc.line(14, 34, 196, 34);
+
+            doc.setFontSize(11);
+            doc.setTextColor(30);
+            let y = 46;
+            doc.text(`Total Income:`, 14, y); doc.text(`Rs. ${s.income.toLocaleString('en-IN')}`, 150, y, { align: 'right' });
+            y += 8;
+            doc.text(`Total Expense:`, 14, y); doc.text(`Rs. ${s.expense.toLocaleString('en-IN')}`, 150, y, { align: 'right' });
+            y += 8;
+            doc.setFont(undefined, 'bold');
+            doc.text(`Net Balance:`, 14, y); doc.text(`Rs. ${s.balance.toLocaleString('en-IN')}`, 150, y, { align: 'right' });
+            doc.setFont(undefined, 'normal');
+            y += 8;
+            doc.text(`Transactions this month:`, 14, y); doc.text(`${s.txCount}`, 150, y, { align: 'right' });
+
+            y += 16;
+            doc.setFontSize(13);
+            doc.text('Top Expense Categories', 14, y);
+            y += 8;
+            doc.setFontSize(11);
+            s.topCategories.forEach(([cat, amt]) => {
+                doc.text(cat, 14, y);
+                doc.text(`Rs. ${amt.toLocaleString('en-IN')}`, 150, y, { align: 'right' });
+                y += 7;
+            });
+
+            doc.setFontSize(9);
+            doc.setTextColor(150);
+            doc.text(`Generated on ${toLocalYMD(new Date())}`, 14, 285);
+
+            doc.save(`vyapar-khata-${toLocalYM(new Date())}.pdf`);
+        }
+        // ---------- END SHARE THIS MONTH ----------
 
         // ---------- PLAIN-LANGUAGE INSIGHTS ----------
 
