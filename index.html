@@ -1880,8 +1880,9 @@
             // AND sync the Type dropdown to match it — so the transaction you're about to
             // submit can't end up mismatched (e.g. Type=Expense with an Income category).
             setTimeout(() => {
-                document.getElementById('category').value = name;
                 document.getElementById('type').value = type;
+                renderCategoryDropdowns();
+                document.getElementById('category').value = name;
             }, 300);
 
             document.getElementById('newCategoryRow').style.display = 'none';
@@ -1989,10 +1990,16 @@
 
             // Type: look for explicit income/expense words; default stays whatever the
             // dropdown was already set to if neither word is heard.
+            // NOTE: setting .value directly (not via the dropdown UI) does NOT fire
+            // onchange, so the category list must be refreshed explicitly here too —
+            // otherwise Type flips to Income/Expense but Category silently stays showing
+            // the wrong set of options until something else happens to trigger a refresh.
             if (/\bincome\b|\breceived\b|\bcredit\b/.test(text)) {
                 document.getElementById('type').value = 'income';
+                renderCategoryDropdowns();
             } else if (/\bexpense\b|\bspent\b|\bpaid\b|\bdebit\b/.test(text)) {
                 document.getElementById('type').value = 'expense';
+                renderCategoryDropdowns();
             }
 
             // Category: match against every currently-available category name (default +
