@@ -511,7 +511,7 @@
                     </button>
                 </div>
                 <p id="voiceEntryStatus" style="display:none;font-size:12px;color:#6366f1;margin:-8px 0 10px;"></p>
-                <select id="category" onchange="handleCategorySelectChange()">
+                <select id="category" onmousedown="syncCategoryToCurrentType()" onchange="handleCategorySelectChange()">
                     <option value="">Select Category</option>
                 </select>
                 <div id="newCategoryRow" style="display:none;">
@@ -1167,6 +1167,19 @@
             html += '<option value="Other">Other</option>';
             return html;
         }
+
+        // Safety net: called the instant the Category dropdown is opened (before the
+        // browser shows its options), so it's guaranteed to match whatever Income/Expense
+        // is currently selected — even if some earlier code path changed Type without
+        // properly refreshing this list.
+        window.syncCategoryToCurrentType = function() {
+            const catSel = document.getElementById('category');
+            const typeSel = document.getElementById('type');
+            if (!catSel || !typeSel) return;
+            const prev = catSel.value;
+            catSel.innerHTML = buildCategorySelectHTML(false, typeSel.value);
+            if (prev && Array.from(catSel.options).some(o => o.value === prev)) catSel.value = prev;
+        };
 
         function renderCategoryDropdowns() {
             const catSel = document.getElementById('category');
