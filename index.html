@@ -500,7 +500,7 @@
                 <div class="grid grid-2">
 <div class="card">
                 <h3 style="margin-bottom:16px">Add Transaction</h3>
-                <select id="type">
+                <select id="type" onchange="renderCategoryDropdowns()">
                     <option value="expense">Expense</option>
                     <option value="income">Income</option>
                 </select>
@@ -636,7 +636,7 @@
 
                     <div class="grid grid-2" style="margin-top:12px;">
                         <div>
-                            <select id="recurType">
+                            <select id="recurType" onchange="renderCategoryDropdowns()">
                                 <option value="expense">Expense</option>
                                 <option value="income">Income</option>
                             </select>
@@ -1112,7 +1112,7 @@
             return [...defaults, ...customs];
         }
 
-        function buildCategorySelectHTML(forBudget) {
+        function buildCategorySelectHTML(forBudget, filterType) {
             let html = '<option value="">Select Category</option>';
             if (!forBudget) {
                 html += '<option value="__add_new__" style="color:#6366f1;font-weight:700;">➕ Add New Category...</option>';
@@ -1123,6 +1123,7 @@
             // 1. Default groups — plus any custom categories the user filed under one of them
             DEFAULT_CATEGORY_GROUPS.forEach(group => {
                 if (forBudget && group.type === 'income') return;
+                if (filterType && group.type !== filterType) return;
                 const visibleItems = group.items.filter(name => {
                     if (isDefaultHidden(name)) return false;
                     if (forBudget && group.noBudgetItems && group.noBudgetItems.includes(name)) return false;
@@ -1140,6 +1141,7 @@
             // 2. Custom groups the user created themselves
             customGroups.forEach(group => {
                 if (forBudget && group.type === 'income') return;
+                if (filterType && group.type !== filterType) return;
                 const inGroupCustoms = customCategories.filter(c => c.group === group.label && c.type === group.type);
                 if (inGroupCustoms.length === 0) return;
                 inGroupCustoms.forEach(c => placedCustomIds.add(c.id));
@@ -1151,12 +1153,12 @@
             // 3. Any custom categories left without a (valid) group — same fallback bucket as before
             const customIncome = customCategories.filter(c => c.type === 'income' && !placedCustomIds.has(c.id)).sort((a, b) => a.name.localeCompare(b.name));
             const customExpense = customCategories.filter(c => c.type !== 'income' && !placedCustomIds.has(c.id)).sort((a, b) => a.name.localeCompare(b.name));
-            if (!forBudget && customIncome.length) {
+            if (!forBudget && customIncome.length && (!filterType || filterType === 'income')) {
                 html += `<optgroup label="✨ Custom Income Categories">` +
                     customIncome.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('') +
                     `</optgroup>`;
             }
-            if (customExpense.length) {
+            if (customExpense.length && (!filterType || filterType === 'expense')) {
                 html += `<optgroup label="✨ Custom Expense Categories">` +
                     customExpense.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('') +
                     `</optgroup>`;
@@ -1172,7 +1174,9 @@
             const recurSel = document.getElementById('recurCategory');
             if (catSel) {
                 const prev = catSel.value;
-                catSel.innerHTML = buildCategorySelectHTML(false);
+                const typeSel = document.getElementById('type');
+                const selectedType = typeSel ? typeSel.value : null; // 'income' or 'expense' — only show matching categories
+                catSel.innerHTML = buildCategorySelectHTML(false, selectedType);
                 if (prev && Array.from(catSel.options).some(o => o.value === prev)) catSel.value = prev;
             }
             if (budgetSel) {
@@ -1182,7 +1186,9 @@
             }
             if (recurSel) {
                 const prev = recurSel.value;
-                recurSel.innerHTML = buildCategorySelectHTML(false).replace(
+                const recurTypeSel = document.getElementById('recurType');
+                const recurSelectedType = recurTypeSel ? recurTypeSel.value : null;
+                recurSel.innerHTML = buildCategorySelectHTML(false, recurSelectedType).replace(
                     '<option value="__add_new__" style="color:#6366f1;font-weight:700;">➕ Add New Category...</option>', ''
                 );
                 if (prev && Array.from(recurSel.options).some(o => o.value === prev)) recurSel.value = prev;
@@ -1240,7 +1246,7 @@
                 if (ungrouped.length) {
                     html += `<div class="cat-subgroup-label"><span>✨ Ungrouped</span></div>`;
                     html += '<div class="cat-chip-list">' +
-                        ungrouped.map(c => `<div class="cat-chip is-custom"><span>${escapeHtml(c.name)}</span><button title="Remove" onclick="window.deleteCustomCategory('${c.id}')">&times;</button></div>`).join('') +
+                        ungrouped.map(c => `<div class="cat-chip is-custom"><span>${escapeHtml(c.name)}</span><button title="Move to a group" onclick="window.moveToGroup('${c.id}', '${type}')" style="margin-right:2px;"><i class="fas fa-folder-open" style="font-size:11px;"></i></button><button title="Remove" onclick="window.deleteCustomCategory('${c.id}')">&times;</button></div>`).join('') +
                         '</div>';
                 }
 
@@ -1342,6 +1348,58 @@
                 remove(uref(`customCategories/${id}`)).catch(err => {
                     Swal.fire('Delete Failed', `Could not delete category: ${err.message}`, 'error');
                 });
+            });
+        }
+
+        // Lets an already-created (currently Ungrouped) category be filed into an
+        // existing group, or a brand new one — without deleting and re-typing it.
+        window.moveToGroup = function(categoryId, type) {
+            const cat = customCategories.find(c => c.id === categoryId);
+            if (!cat) return;
+            Swal.fire({
+                title: `Move "${cat.name}" into a group`,
+                html: `
+                    <select id="moveGroupSelect" class="swal2-input">${buildGroupOptionsHTML(type)}</select>
+                    <input id="moveNewGroupName" class="swal2-input" placeholder="New group name (e.g. Investment Income)" style="display:none;">
+                `,
+                confirmButtonText: 'Move',
+                showCancelButton: true,
+                didOpen: () => {
+                    const groupSel = document.getElementById('moveGroupSelect');
+                    const newGroupInput = document.getElementById('moveNewGroupName');
+                    groupSel.addEventListener('change', () => {
+                        const isNew = groupSel.value === '__new_group__';
+                        newGroupInput.style.display = isNew ? 'block' : 'none';
+                        if (isNew) newGroupInput.focus();
+                    });
+                },
+                preConfirm: () => {
+                    let group = document.getElementById('moveGroupSelect').value;
+                    if (group === '__new_group__') {
+                        const newGroupName = document.getElementById('moveNewGroupName').value.trim();
+                        if (!newGroupName) { Swal.showValidationMessage('Please type a name for the new group'); return false; }
+                        const existingLabels = [...DEFAULT_CATEGORY_GROUPS, ...customGroups].filter(g => g.type === type).map(g => stripLeadingEmoji(g.label));
+                        if (existingLabels.includes(newGroupName.toLowerCase())) {
+                            Swal.showValidationMessage(`A group named "${newGroupName}" already exists`);
+                            return false;
+                        }
+                        return { newGroupName };
+                    }
+                    return { group };
+                }
+            }).then(result => {
+                if (!result.isConfirmed) return;
+                if (result.value.newGroupName) {
+                    const label = `📁 ${result.value.newGroupName}`;
+                    push(uref('customGroups'), { label, type, addedAt: Date.now() })
+                        .then(() => update(uref(`customCategories/${categoryId}`), { group: label }))
+                        .then(() => Swal.fire('Moved!', `"${cat.name}" is now under "${label}".`, 'success'))
+                        .catch(err => Swal.fire('Failed', err.message, 'error'));
+                } else {
+                    update(uref(`customCategories/${categoryId}`), { group: result.value.group || '' })
+                        .then(() => Swal.fire('Moved!', `"${cat.name}" ${result.value.group ? `is now under "${result.value.group}"` : 'is now Ungrouped'}.`, 'success'))
+                        .catch(err => Swal.fire('Failed', err.message, 'error'));
+                }
             });
         }
 
