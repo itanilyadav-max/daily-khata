@@ -641,7 +641,7 @@
                                 <option value="income">Income</option>
                             </select>
                             <input type="number" id="recurAmount" placeholder="Amount ₹" />
-                            <select id="recurCategory">
+                            <select id="recurCategory" onmousedown="syncRecurCategoryToCurrentType()">
                                 <option value="">Select Category</option>
                             </select>
                             <input type="text" id="recurNote" placeholder="Note (e.g. Shop Rent - July)" />
@@ -1179,6 +1179,19 @@
             const prev = catSel.value;
             catSel.innerHTML = buildCategorySelectHTML(false, typeSel.value);
             if (prev && Array.from(catSel.options).some(o => o.value === prev)) catSel.value = prev;
+        };
+
+        // Same safety net as above, for the Recurring Transactions form's own
+        // Income/Expense selector and category list.
+        window.syncRecurCategoryToCurrentType = function() {
+            const recurSel = document.getElementById('recurCategory');
+            const recurTypeSel = document.getElementById('recurType');
+            if (!recurSel || !recurTypeSel) return;
+            const prev = recurSel.value;
+            recurSel.innerHTML = buildCategorySelectHTML(false, recurTypeSel.value).replace(
+                '<option value="__add_new__" style="color:#6366f1;font-weight:700;">➕ Add New Category...</option>', ''
+            );
+            if (prev && Array.from(recurSel.options).some(o => o.value === prev)) recurSel.value = prev;
         };
 
         function renderCategoryDropdowns() {
@@ -2580,13 +2593,27 @@
                         <option value="income" ${t.type==='income'?'selected':''}>Income</option>
                     </select>
                     <input id="swalAmount" type="number" class="swal2-input" style="width:85%;" placeholder="Amount ₹" value="${t.amount}">
-                    <input id="swalCategory" type="text" class="swal2-input" style="width:85%;" placeholder="Category name" value="${currentCategory.replace(/"/g,'&quot;')}">
+                    <select id="swalCategory" class="swal2-input" style="width:85%;"></select>
                     <input id="swalNote" type="text" class="swal2-input" style="width:85%;" placeholder="Note" value="${(t.note||'').replace(/"/g,'&quot;')}">
                     <input id="swalDate" type="date" class="swal2-input" style="width:85%;" value="${t.date}">
                 `,
                 showCancelButton: true,
                 confirmButtonText: 'Save Changes',
                 confirmButtonColor: '#6366f1',
+                didOpen: () => {
+                    const typeSel = document.getElementById('swalType');
+                    const catSel = document.getElementById('swalCategory');
+                    // Populate the category list for the transaction's current type,
+                    // and re-filter it live if the type is changed in this popup —
+                    // same rule as Add Transaction: Income shows only income categories.
+                    const fillCategories = (selected) => {
+                        catSel.innerHTML = buildCategorySelectHTML(false, typeSel.value)
+                            .replace('<option value="__add_new__" style="color:#6366f1;font-weight:700;">➕ Add New Category...</option>', '');
+                        if (selected && Array.from(catSel.options).some(o => o.value === selected)) catSel.value = selected;
+                    };
+                    fillCategories(currentCategory);
+                    typeSel.addEventListener('change', () => fillCategories(null)); // type changed → old category likely doesn't apply anymore
+                },
                 preConfirm: () => {
                     const category = document.getElementById('swalCategory').value.trim();
                     const amount = parseFloat(document.getElementById('swalAmount').value);
